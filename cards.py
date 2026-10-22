@@ -71,6 +71,7 @@ LATER_SEEDS = ["kartoni_stena_krichim.json", "kartoni_avtotransport.json"]
 # Удължителите са само при Стоян Коджаманов (указание от 22.10.2026).
 SEED_FIX2 = "kartoni_fix2_koilov"
 KOILOV_DROP = ("9-170005", "9-170006")
+SEED_FIX3 = "kartoni_fix3_data"
 # Склад на позиция по картон: собственият ѝ, ако е зададен, иначе складът на картона.
 EFF = "COALESCE(ci.warehouse_id, c.warehouse_id)"
 SEED_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "seed")
@@ -157,6 +158,11 @@ def init_db():
         db.execute("INSERT INTO stock_seeds (filename) VALUES (?)", (SEED_SITE_VACHA,))
     for filename in LATER_SEEDS:
         _load_seed(db, filename)
+    if not db.execute("SELECT 1 FROM stock_seeds WHERE filename = ?", (SEED_FIX3,)).fetchone():
+        # грешни дати в картона на Николай Папалаков: „28.02.019“ и несъществуващата „31.06.2005“
+        db.execute("UPDATE card_items SET issued_on = '2019-02-28' WHERE issued_on = '019-02-28'")
+        db.execute("UPDATE card_items SET issued_on = '2005-06-30' WHERE issued_on = '2005-06-31'")
+        db.execute("INSERT INTO stock_seeds (filename) VALUES (?)", (SEED_FIX3,))
     if not db.execute("SELECT 1 FROM stock_seeds WHERE filename = ?", (SEED_FIX2,)).fetchone():
         marks = ",".join("?" * len(KOILOV_DROP))
         db.execute(f"DELETE FROM card_items WHERE inv_number IN ({marks}) AND card_id IN"
@@ -379,7 +385,11 @@ def _cell_date(value):
         return (date(1899, 12, 30) + timedelta(days=int(value))).isoformat()
     parts = str(value).strip().split(".")
     if len(parts) == 3 and all(p.isdigit() for p in parts):
-        return f"{parts[2]}-{parts[1].zfill(2)}-{parts[0].zfill(2)}"
+        year = int(parts[2]) + (2000 if len(parts[2]) < 4 else 0)  # „28.02.019“ и „28.02.19“ са 2019
+        try:
+            return date(year, int(parts[1]), int(parts[0])).isoformat()
+        except ValueError:
+            return None
     return None
 
 
@@ -393,7 +403,10 @@ def _card(card_id):
 
 
 def _date(value):
-    return date.fromisoformat(value) if value else None
+    try:
+        return date.fromisoformat(value) if value else None
+    except ValueError:
+        return None  # сгрешена дата от импорта не спира страницата
 
 
 @bp.route("/")
