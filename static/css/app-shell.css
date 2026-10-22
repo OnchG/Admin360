@@ -1,0 +1,47 @@
+/* ==========================================================================
+   · обща рамка на страниците
+   Ляво меню (components/app_sidebar.html), header (components/system_header.html)
+   и footer (components/app_footer.html) са едни и същи за всички страници.
+   Нови страници наследяват templates/layouts/app_shell.html.
+   ========================================================================== */
+:root{--app-footer-height:44px}
+
+/* footer */
+.app-footer{display:flex;align-items:center;justify-content:space-between;gap:8px 18px;flex-wrap:wrap;
+    min-height:var(--app-footer-height);padding:10px 24px;box-sizing:border-box;
+    border-top:1px solid var(--c-line,#252a34);background:var(--c-bg,#0e1014);
+    color:var(--c-muted,#828b9b);font:12px/1.4 var(--ui-font,"IBM Plex Sans","Sofia Sans",Arial,sans-serif)}
+.app-footer strong{color:var(--c-text-2,#b3bac6);font-weight:600}
+.app-footer__author{color:var(--c-text-2,#b3bac6)}
+
+/* рамка за нови страници (layouts/app_shell.html) */
+body.app-body{margin:0;background:var(--c-bg,#0e1014);color:var(--c-text,#e8ebf0)}
+.app-shell{display:grid;grid-template-columns:var(--app-sidebar-width,300px) minmax(0,1fr);min-height:100vh;align-items:start}
+.app-shell>.context-sidebar{position:sticky!important;top:0}
+.app-workspace{min-width:0;min-height:100vh;display:flex;flex-direction:column}
+.app-workspace>.system-header{position:sticky!important;top:0!important;z-index:1800!important}
+/* Хедърът е с вътрешни отстъпи; без border-box излизаше 44 px вдясно и страницата се превърташе хоризонтално. */
+.app-workspace>.system-header{box-sizing:border-box!important;width:100%!important;max-width:100%!important}
+.app-main{flex:1 0 auto;min-width:0}
+
+/* страници със собствен скрол в работната област (Табло, Месечни, Оперативни, Воден баланс):
+   footer-ът стои най-долу, а съдържанието се смалява с неговата височина */
+.area-shell .workspace>.app-footer{flex:0 0 var(--app-footer-height)}
+.area-shell .workspace>.slider,
+.area-shell .workspace>.area-module-content{height:calc(100vh - var(--system-header-height,78px) - var(--app-footer-height))!important}
+.area-shell .workspace>.slider .slide{height:calc(100vh - var(--system-header-height,78px) - var(--app-footer-height))!important}
+.area-shell .workspace>.dots{bottom:calc(var(--app-footer-height) + 14px)!important}
+.area-shell .workspace>.hint{bottom:calc(var(--app-footer-height) + 10px)!important}
+.meteorology-workspace>.app-footer{flex:0 0 var(--app-footer-height)}
+
+/* страници с обикновен скрол: footer-ът е след съдържанието */
+.app-page-content{display:flex;flex-direction:column}
+.app-page-content>.app-footer{margin-top:auto}
+
+@media(max-width:1100px){
+    .app-shell{display:block}
+    .app-shell>.context-sidebar{position:relative!important}
+    .area-shell .workspace>.slider,
+    .area-shell .workspace>.area-module-content,
+    .area-shell .workspace>.slider .slide{height:auto!important}
+}

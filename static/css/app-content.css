@@ -1,0 +1,72 @@
+/* ==========================================================================
+   Съдържание на страниците: карти, показатели, таблици, форми, съобщения.
+   Цветовете идват от токените в app-theme.css (--c-*, --s-*).
+   ========================================================================== */
+.page{display:flex;flex-direction:column;gap:14px;padding:18px 24px 24px;box-sizing:border-box}
+.page--narrow{max-width:860px}
+
+/* карти */
+.dash-card{background:var(--c-surface);border:1px solid var(--c-line);border-radius:var(--r);box-shadow:none}
+.dash-card__head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 12px}
+.dash-card__head h2{margin:0;color:var(--c-text)}
+
+/* показатели */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+.kpi-card{display:flex;flex-direction:column;gap:4px;background:var(--c-surface);border:1px solid var(--c-line);border-radius:var(--r)}
+.kpi-label{text-transform:uppercase}
+.kpi-value{font-family:var(--num-font);font-weight:500}
+
+/* таблици */
+.table-wrap{overflow-x:auto}
+.data-table{width:100%;border-collapse:collapse;font-size:13px}
+.data-table th{padding:8px 10px;text-align:left;color:var(--c-muted);font-size:11px;font-weight:600;letter-spacing:.6px;text-transform:uppercase;border-bottom:1px solid var(--c-line-2);white-space:nowrap}
+.data-table td{padding:9px 10px;border-bottom:1px solid var(--c-line);color:var(--c-text)}
+.data-table tbody tr:hover td{background:var(--c-surface-2)}
+.data-table .num{text-align:right}
+.mono{font-family:var(--num-font)}
+
+/* статус: точка + текст; червено само за проблем */
+.status-dot{display:inline-flex;align-items:center;gap:7px;color:var(--c-text-2)}
+.status-dot::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--c-muted)}
+.status-dot--ok::before{background:var(--s-ok)}
+.status-dot--warn::before{background:var(--s-warn)}
+.status-dot--bad::before{background:var(--s-bad)}
+
+/* бутони */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:34px;padding:0 14px;font:inherit;font-size:13px;text-decoration:none;cursor:pointer;white-space:nowrap}
+
+/* форми */
+.form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 16px}
+.field{display:flex;flex-direction:column;gap:6px;min-width:0}
+.field>span{font-size:12px;font-weight:600;color:var(--c-text-2)}
+.field--wide{grid-column:1/-1}
+.app-main :is(input:not([type=checkbox]):not([type=radio]):not([type=file]),select,textarea){
+    width:100%;box-sizing:border-box;min-height:38px;padding:8px 10px;font:inherit;font-size:14px;
+    background:var(--c-input);border:1px solid var(--c-line-2);border-radius:var(--r-sm);color:var(--c-text)}
+.app-main textarea{resize:vertical}
+.app-main :is(input,select,textarea):focus{outline:none;border-color:var(--c-accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--c-accent) 18%,transparent)}
+.form-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:16px;padding-top:14px;border-top:1px solid var(--c-line)}
+
+/* съобщения след запис */
+.app-flash{margin:14px 24px 0;padding:10px 14px;border:1px solid var(--c-line-2);border-left:3px solid var(--s-info);border-radius:var(--r-sm);background:var(--c-surface);color:var(--c-text)}
+.app-flash--ok{border-left-color:var(--s-ok)}
+.app-flash--warn{border-left-color:var(--s-warn)}
+.app-flash--bad{border-left-color:var(--s-bad)}
+
+/* празна страница */
+.empty-state{display:flex;flex-direction:column;align-items:flex-start;gap:8px}
+.empty-state h2{margin:0;font-size:16px}
+.empty-state p{margin:0 0 6px;color:var(--c-muted)}
+.empty-state code{font-family:var(--num-font);color:var(--c-text-2)}
+
+/* лого в менюто */
+.app-logo{display:flex;align-items:center;gap:12px;color:var(--c-text,#f8fafc)}
+.app-logo__mark{flex:0 0 44px;width:44px;height:44px}
+.app-logo__text{display:flex;flex-direction:column;line-height:1.15;min-width:0}
+.app-logo__text strong{font-size:22px;font-weight:800;letter-spacing:.2px}
+.app-logo__text small{margin-top:3px;font-size:11px;font-weight:600;letter-spacing:.2px;white-space:nowrap;color:var(--logo-accent,#22d3ee)}
+
+@media(max-width:700px){
+    .page{padding:14px}
+    .form-grid{grid-template-columns:1fr}
+}

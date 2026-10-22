@@ -1,0 +1,5 @@
+{#- Единственият footer: последен елемент в работната област на всяка страница. -#}
+<footer class="app-footer">
+    <span>© {{ app_year }} <strong>{{ app_name }}</strong></span>
+    {% if app_author %}<span class="app-footer__author">{{ app_author }}</span>{% endif %}
+</footer>

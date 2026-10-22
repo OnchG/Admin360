@@ -1,0 +1,18 @@
+{% extends "layouts/app_shell.html" %}
+{% set sidebar_active = active %}
+{% set header_title = title %}
+{% set header_breadcrumbs = [{'label': 'Начало', 'url': url_for('dashboard')}, {'label': title}] %}
+{% block content %}
+<div class="page">
+    <section class="dash-card empty-state">
+        {% if missing %}
+            <h2>Няма такава страница</h2>
+            <p>Проверете адреса или изберете раздел от лявото меню.</p>
+        {% else %}
+            <h2>{{ title }}</h2>
+            <p>Тази страница още няма съдържание. Създайте шаблон в <code>templates/pages/</code> и маршрут в <code>app.py</code>.</p>
+        {% endif %}
+        <a class="btn" href="{{ url_for('dashboard') }}">Към таблото</a>
+    </section>
+</div>
+{% endblock %}

@@ -1,0 +1,409 @@
+/* ==========================================================================
+   UI концепция „Инженерна конзола“ (тема v2)
+   --------------------------------------------------------------------------
+   Идея: платформата е работен инструмент за наблюдение на съоръжения, а не
+   витрина. Данните са главните, а рамката около тях се отдръпва.
+     1. Графитен неутрален фон, без сияния и градиенти.
+     2. Една плоска повърхност за всичко: карти, панели, таблици.
+     3. Цветът носи смисъл: модулите се разпознават по цветна релса вляво
+        и цветна икона; статусите са зелено, кехлибарено, червено.
+     4. Един акцентен цвят (тюркоаз) за действия и активно състояние.
+     5. IBM Plex Sans за текст и IBM Plex Mono за стойности и кодове.
+     6. Плътност: по-малки отстояния и радиуси, повече данни на екран.
+   Слоят е само визуален: не крие елементи и не променя layout или JS.
+   Изключване: махнете реда, който зарежда този файл, от шаблоните.
+   ========================================================================== */
+
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap");
+
+:root{
+    --c-bg:#0e1014;
+    --c-rail:#0a0c0f;
+    --c-surface:#15181e;
+    --c-surface-2:#1b1f27;
+    --c-surface-3:#222733;
+    --c-input:#101318;
+    --c-line:#252a34;
+    --c-line-2:#323846;
+
+    --c-text:#e8ebf0;
+    --c-text-2:#b3bac6;
+    --c-muted:#828b9b;
+
+    --c-accent:#2dd4bf;
+    --c-accent-ink:#04201c;
+
+    /* модули */
+    --m-filtration:#38bdf8;
+    --m-piezo:#2dd4bf;
+    --m-plumbs:#818cf8;
+    --m-deform:#fb923c;
+    --m-tele:#c084fc;
+    --m-geo:#4ade80;
+
+    /* статуси */
+    --s-ok:#4ade80;
+    --s-warn:#fbbf24;
+    --s-bad:#f87171;
+    --s-info:#60a5fa;
+
+    --r:8px;
+    --r-sm:6px;
+
+    --ui-font:"IBM Plex Sans","Sofia Sans","Segoe UI",Arial,sans-serif;
+    --num-font:"IBM Plex Mono",ui-monospace,"Cascadia Mono",Consolas,monospace;
+
+    /* съвместимост с променливите на модулите */
+    --line:var(--c-line);
+    --muted:var(--c-text-2);
+    --shadow:none;
+    --cyan:var(--c-accent);
+    --text:var(--c-text);
+    --border:var(--c-line);
+    --system-header-text:var(--c-text);
+    --system-header-muted:var(--c-muted);
+}
+
+/* ---------- Основа ---------- */
+html body{
+    background:var(--c-bg)!important;
+    color:var(--c-text)!important;
+    font-family:var(--ui-font)!important;
+    font-variant-numeric:tabular-nums;
+    -webkit-font-smoothing:antialiased;
+}
+html body :is(h1,h2,h3,h4,p,span,a,label,button,input,select,textarea,td,th,li,small,strong,div){
+    font-family:inherit;
+}
+.workspace,
+.area-module-content,
+.app-page-content,
+.admin-main,
+.wb-page,
+.meteorology-workspace,
+.measurements-page,
+.waste-module-content,
+.profile-page-shell .page{
+    background:var(--c-bg)!important;
+}
+
+/* Стойности, кодове и идентификатори: моноширинен шрифт */
+.monthly-type-head strong,
+.kpi-value,
+.dash-kpi strong,
+.op-summary-card strong,
+.point-id,
+.instrument-id,
+.type-id,
+.op-day-number,
+.measure-table td,
+.feedback-table td:last-child,
+.status-item strong,
+code{
+    font-family:var(--num-font)!important;
+    font-weight:500!important;
+    letter-spacing:-.2px!important;
+}
+
+/* ---------- Меню ---------- */
+.app-shared-sidebar.context-sidebar,
+.context-sidebar,
+.admin-sidebar{
+    background:var(--c-rail)!important;
+    border-right:1px solid var(--c-line)!important;
+    box-shadow:none!important;
+}
+.sidebar-brand img,.brand-logo{mix-blend-mode:lighten}
+.brand-divider{background:var(--c-line)!important;opacity:1!important;box-shadow:none!important}
+.app-shared-sidebar .sidebar-group,
+.app-sidebar .sidebar-group{
+    background:transparent!important;
+    border:0!important;
+    border-radius:0!important;
+    box-shadow:none!important;
+    padding:4px 0!important;
+    margin:0!important;
+}
+.app-shared-sidebar .sidebar-group + .sidebar-group{border-top:1px solid var(--c-line)!important}
+.app-shared-sidebar .sidebar-group-head,
+.app-shared-sidebar .sidebar-section-label,
+.admin-sidebar .nav-section-title{
+    color:var(--c-muted)!important;
+    font-size:10.5px!important;
+    letter-spacing:.9px!important;
+    font-weight:600!important;
+}
+.app-shared-sidebar .sidebar-subitem,
+.app-shared-sidebar .sidebar-item,
+.admin-sidebar .nav-link{
+    position:relative;
+    min-height:34px!important;
+    border-radius:var(--r-sm)!important;
+    border:1px solid transparent!important;
+    background:transparent!important;
+    color:var(--c-text-2)!important;
+    font-weight:500!important;
+    box-shadow:none!important;
+}
+.app-shared-sidebar .sidebar-subitem:hover,
+.app-shared-sidebar .sidebar-item:hover,
+.admin-sidebar .nav-link:hover{
+    background:var(--c-surface)!important;
+    color:var(--c-text)!important;
+}
+.app-shared-sidebar .sidebar-subitem.primary,
+.app-shared-sidebar .sidebar-item.primary,
+.admin-sidebar .nav-link.active{
+    background:var(--c-surface-2)!important;
+    color:var(--c-text)!important;
+    border-color:transparent!important;
+    box-shadow:inset 3px 0 0 var(--c-accent)!important;
+}
+.app-shared-sidebar .sidebar-subitem.primary .ico,
+.app-shared-sidebar .sidebar-item.primary .ico{color:var(--c-accent)!important;background:transparent!important;box-shadow:none!important}
+.admin-sidebar .nav-section{background:transparent!important;border:0!important;border-top:1px solid var(--c-line)!important;border-radius:0!important;box-shadow:none!important}
+
+/* ---------- Горна лента ---------- */
+.system-header,
+.system-sticky-header{
+    background:var(--c-bg)!important;
+    border-bottom:1px solid var(--c-line)!important;
+    box-shadow:none!important;
+    backdrop-filter:none!important;
+}
+.system-header__title{font-size:18px!important;font-weight:600!important;letter-spacing:-.1px!important;flex-shrink:0}
+.system-header__subtitle{color:var(--c-muted)!important;min-width:0;flex:1 1 auto}
+.system-breadcrumbs a{color:var(--c-muted)!important}
+.system-breadcrumbs__current{color:var(--c-text-2)!important;font-weight:500!important}
+.system-header__clock,.system-profile__summary{
+    background:transparent!important;
+    border-color:var(--c-line)!important;
+    box-shadow:none!important;
+}
+.system-header__calendar{color:var(--c-accent)!important}
+
+/* ---------- Повърхности ---------- */
+.monthly-type-card,
+.monthly-panel,
+.dash-card,
+.kpi-card,
+.section-card,
+.admin-content .card,
+.ot-page .card,
+.panel,
+.wb-card,
+.data-panel,
+.kpi-tile,
+.info-panel,
+.level-history-card,
+.scada-tabs-panel,
+.cross-section-card,
+.dq-card,
+.tile,
+.module,
+.op-entry-hero,
+.op-entry-progress,
+.op-card,
+.op-section-card,
+.profile-page-shell .card,
+.module-tab,
+.waste-module-body .card,
+.meteo-panel,
+.monthly-entry-dialog,
+.op-modal-dialog{
+    background:var(--c-surface)!important;
+    border:1px solid var(--c-line)!important;
+    border-radius:var(--r)!important;
+    box-shadow:none!important;
+    backdrop-filter:none!important;
+}
+.tile:hover,.module-tab:hover,.monthly-type-card:hover,.quick-row:hover{
+    border-color:var(--c-line-2)!important;
+    background:var(--c-surface-2)!important;
+    transform:none!important;
+}
+.module-tab.active{box-shadow:inset 3px 0 0 var(--c-accent)!important;background:var(--c-surface-2)!important}
+
+/* ---------- Модулни карти: цветна релса вляво вместо лента отгоре ---------- */
+.monthly-type-card{
+    --tone:var(--c-accent);
+    min-height:0!important;
+    gap:10px!important;
+    padding:14px 14px 14px 17px!important;
+    box-shadow:inset 3px 0 0 var(--tone)!important;
+}
+.monthly-type-card::before{display:none!important}
+.monthly-type-card.tone-cyan{--tone:var(--m-filtration)}
+.monthly-type-card.tone-teal{--tone:var(--m-piezo)}
+.monthly-type-card.tone-blue{--tone:var(--m-plumbs)}
+.monthly-type-card.tone-orange{--tone:var(--m-deform)}
+.monthly-type-card.tone-purple{--tone:var(--m-tele)}
+.monthly-type-card.tone-green{--tone:var(--m-geo)}
+.monthly-card-grid,.monthly-main-grid{gap:10px!important}
+
+.monthly-type-head{grid-template-columns:32px 1fr!important;gap:10px!important}
+.monthly-type-icon,
+.monthly-main-grid .monthly-type-icon{
+    width:32px!important;height:32px!important;
+    border-radius:var(--r-sm)!important;
+    background:color-mix(in srgb,var(--tone) 12%,transparent)!important;
+    border:0!important;
+    color:var(--tone)!important;
+}
+.monthly-type-icon::after{display:none!important}
+.monthly-type-icon svg,.monthly-main-grid .monthly-type-icon svg{width:18px!important;height:18px!important;filter:none!important;stroke-width:1.8!important}
+.monthly-type-head h2{font-size:14px!important;font-weight:600!important;margin:0 0 2px!important}
+.monthly-type-head span{font-size:12px!important;color:var(--c-muted)!important}
+.monthly-type-head strong{font-size:22px!important;margin-top:6px!important;color:var(--c-text)!important}
+.monthly-type-meta{padding-top:9px!important;border-top:1px solid var(--c-line)!important}
+.monthly-type-meta span{color:var(--c-muted)!important}
+.monthly-type-meta strong{font-size:12.5px!important;font-weight:600!important;color:var(--c-text)!important}
+.monthly-progress-summary span,.monthly-progress-foot span{color:var(--c-muted)!important}
+.monthly-progress-track{height:4px!important;border-radius:2px!important;background:var(--c-surface-3)!important}
+.monthly-progress-track span{background:var(--tone,var(--c-accent))!important;box-shadow:none!important}
+
+/* ---------- KPI: плоски плочки ---------- */
+.kpi-grid{gap:10px!important}
+.kpi-card,.kpi-tile{padding:12px 14px!important;min-height:0!important}
+.kpi-label{font-size:10.5px!important;letter-spacing:.7px!important;font-weight:600!important;color:var(--c-muted)!important}
+.kpi-value{font-size:22px!important;line-height:1.2!important;color:var(--c-text)!important}
+.kpi-sub,.kpi-footnote{font-size:12px!important;color:var(--c-muted)!important}
+.dash-kpi{background:var(--c-surface-2)!important;border:1px solid var(--c-line)!important;border-radius:var(--r-sm)!important;box-shadow:none!important}
+
+/* ---------- Заглавия на секции ---------- */
+.monthly-overview-head{border-bottom:1px solid var(--c-line)!important;padding-bottom:10px!important;margin-bottom:12px!important}
+.monthly-overview-head h2{font-size:17px!important;font-weight:600!important}
+.monthly-overview-kicker{color:var(--c-accent)!important;font-weight:600!important;letter-spacing:1px!important}
+.monthly-panel-head,.section-head{padding:12px 14px!important;border-bottom:1px solid var(--c-line)!important}
+.monthly-panel-head h2,.section-title,.dash-card__head h2{font-size:14px!important;font-weight:600!important}
+.monthly-panel-head p,.section-desc,.section-subtitle,.meta,.tile-desc{color:var(--c-muted)!important}
+.section-index{width:22px!important;height:22px!important;flex-basis:22px!important;border-radius:5px!important;font-size:11px!important;background:var(--c-surface-3)!important;border:0!important;color:var(--c-text-2)!important}
+.card-body,.compact-card-body{padding:12px 14px!important}
+.dash-card{padding:14px!important}
+.wb-dash-head h1,.page-hero h1{font-size:22px!important;font-weight:600!important;letter-spacing:-.2px!important}
+.dam-hero h1{font-size:30px!important;font-weight:600!important}
+.wb-dash-head .kicker,.eyebrow,.dam-hero__eyebrow{color:var(--c-accent)!important}
+
+/* ---------- Таблици ---------- */
+.monthly-table th,.monthly-table td,
+.measurements-table th,.measurements-table td,
+.admin-content table th,.admin-content table td,
+.waste-module-body table th,.waste-module-body table td,
+.op-measurement-table th,.op-measurement-table td,
+.feedback-table th,.feedback-table td,
+.excel-journal th,.excel-journal td{
+    border-color:var(--c-line)!important;
+}
+.monthly-table thead th,
+.measurements-table th,
+.admin-content table thead th,
+.waste-module-body table thead th,
+.op-measurement-table thead th,
+.feedback-table th{
+    background:var(--c-surface-2)!important;
+    color:var(--c-muted)!important;
+    font-size:10.5px!important;
+    font-weight:600!important;
+    letter-spacing:.6px;
+    text-transform:uppercase;
+}
+.measurements-table td{padding-top:8px!important;padding-bottom:8px!important}
+.measurements-table tbody tr,
+.admin-content table tbody tr{background:transparent!important}
+.measurements-table tbody tr:hover,
+.monthly-table tbody tr:hover,
+.admin-content table tbody tr:hover,
+.waste-module-body table tbody tr:hover{background:color-mix(in srgb,var(--c-accent) 5%,transparent)!important}
+
+/* ---------- Полета ---------- */
+:is(.admin-content,.area-module-content,.waste-module-body,.measurements-page,.wb-page,.profile-page-shell,.meteorology-workspace) :is(input:not([type=checkbox]):not([type=radio]):not([type=color]):not([type=file]),select,textarea){
+    background:var(--c-input)!important;
+    border:1px solid var(--c-line-2)!important;
+    border-radius:var(--r-sm)!important;
+    color:var(--c-text)!important;
+    box-shadow:none!important;
+}
+:is(.admin-content,.area-module-content,.waste-module-body,.measurements-page,.wb-page,.profile-page-shell,.meteorology-workspace) :is(input,select,textarea):focus{
+    outline:none!important;
+    border-color:var(--c-accent)!important;
+    box-shadow:0 0 0 3px color-mix(in srgb,var(--c-accent) 18%,transparent)!important;
+}
+:is(input,textarea)::placeholder{color:#5f6878!important}
+label,.monthly-toolbar label span,.op-form-grid label span{color:var(--c-text-2)}
+
+/* ---------- Бутони ---------- */
+.btn,.op-button,.dm-btn,.top-btn{
+    border-radius:var(--r-sm)!important;
+    background:transparent!important;
+    border:1px solid var(--c-line-2)!important;
+    color:var(--c-text)!important;
+    font-weight:600!important;
+    box-shadow:none!important;
+    text-shadow:none!important;
+    transform:none!important;
+}
+.btn:hover,.dm-btn:hover,.top-btn:hover{background:var(--c-surface-2)!important;border-color:#414859!important}
+.btn.primary,.btn-primary,.dm-btn.primary,.op-button-primary{
+    background:var(--c-accent)!important;
+    border-color:var(--c-accent)!important;
+    color:var(--c-accent-ink)!important;
+}
+.btn.primary:hover,.btn-primary:hover,.dm-btn.primary:hover{background:#5eead4!important;border-color:#5eead4!important}
+.btn.danger,.btn-danger{border-color:color-mix(in srgb,var(--s-bad) 55%,transparent)!important;color:#fca5a5!important}
+.btn.danger:hover,.btn-danger:hover{background:color-mix(in srgb,var(--s-bad) 12%,transparent)!important}
+.btn-success{background:var(--s-ok)!important;border-color:var(--s-ok)!important;color:#052e16!important}
+.btn:disabled,.btn[disabled],.btn.disabled{opacity:.45!important;cursor:not-allowed}
+/* Модулните карти: основният бутон е в цвета на модула */
+.monthly-type-card .btn.primary{
+    background:color-mix(in srgb,var(--tone) 16%,transparent)!important;
+    border-color:color-mix(in srgb,var(--tone) 55%,transparent)!important;
+    color:var(--c-text)!important;
+}
+.monthly-type-card .btn.primary:hover{background:color-mix(in srgb,var(--tone) 26%,transparent)!important}
+
+/* Табове и превключватели */
+.waste-module-tab,.scada-tab-btn,.wb-main-tab,.journal-tab-btn,.meteo-tab{border-radius:var(--r-sm)!important}
+.waste-module-tab.active,.scada-tab-btn.active,.wb-main-tab.active,.journal-tab-btn.active{
+    background:var(--c-surface-3)!important;
+    border-color:var(--c-line-2)!important;
+    color:var(--c-text)!important;
+    box-shadow:inset 0 -2px 0 var(--c-accent)!important;
+}
+
+/* ---------- Значки и статуси ---------- */
+.status-pill,.badge,.context-pill,.table-pill{
+    border-radius:999px!important;
+    font-weight:600!important;
+    background:var(--c-surface-2)!important;
+    border:1px solid var(--c-line-2)!important;
+    color:var(--c-text-2)!important;
+}
+.context-pill.accent,.table-pill.accent{color:var(--c-accent)!important;border-color:color-mix(in srgb,var(--c-accent) 45%,transparent)!important}
+.status-pill.complete{color:var(--s-ok)!important;border-color:color-mix(in srgb,var(--s-ok) 45%,transparent)!important}
+.status-pill.copied{color:var(--s-info)!important;border-color:color-mix(in srgb,var(--s-info) 45%,transparent)!important}
+.op-alert{border-radius:var(--r-sm)!important}
+
+/* ---------- Календар на оперативните ---------- */
+.op-day{border-radius:var(--r-sm)!important;background:var(--c-surface-2)!important;border-color:var(--c-line)!important}
+.op-day.is-nonworking{background:transparent!important;opacity:.6}
+.op-day.is-selected{border-color:var(--c-accent)!important;box-shadow:0 0 0 1px var(--c-accent)!important}
+
+/* ---------- Скролбарове ---------- */
+*{scrollbar-color:#3a4150 transparent}
+
+/* ===== UX слой (app-ux.js): незаписани промени, запис, стари данни ===== */
+.ux-unsaved{
+    position:fixed; right:20px; bottom:20px; z-index:9999; max-width:min(520px,calc(100vw - 40px));
+    padding:9px 14px 9px 12px; border-radius:8px;
+    background:var(--c-surface-3); border:1px solid rgba(251,191,36,.45); color:var(--c-text);
+    font-size:13px; box-shadow:0 8px 24px rgba(0,0,0,.35);
+    display:flex; align-items:center; gap:8px;
+}
+.ux-unsaved::before{content:""; width:8px; height:8px; border-radius:50%; background:var(--s-warn); flex:0 0 auto}
+.ux-unsaved[hidden]{display:none!important}
+.ux-unsaved.ux-flash{animation:uxFlash .5s ease 2}
+@keyframes uxFlash{50%{border-color:var(--s-warn); background:rgba(251,191,36,.18)}}
+.ux-attn{box-shadow:0 0 0 2px rgba(251,191,36,.55)!important}
+.ux-busy{opacity:.7!important; cursor:progress!important}
+.ux-stale{color:var(--s-warn)!important}
+@media (prefers-reduced-motion:reduce){.ux-unsaved.ux-flash{animation:none}}

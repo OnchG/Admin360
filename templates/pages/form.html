@@ -1,0 +1,28 @@
+{% extends "layouts/app_shell.html" %}
+{% set sidebar_active = 'nalichnosti' %}
+{% set header_title = 'Нова позиция' %}
+{% set header_subtitle = 'Склад' %}
+{% set header_breadcrumbs = [{'label': 'Начало', 'url': url_for('dashboard')}, {'label': 'Склад'}, {'label': 'Наличности', 'url': url_for('example_list')}, {'label': 'Нова позиция'}] %}
+{% from "components/date_input.html" import date_input %}
+{% block content %}
+<div class="page page--narrow">
+    <form class="dash-card form-card" method="post">
+        <div class="dash-card__head"><h2>Нова позиция</h2></div>
+        <div class="form-grid">
+            <label class="field"><span>Код</span><input name="code" placeholder="СК-004" required></label>
+            <div class="field"><span>Дата на доставка</span>{{ date_input('date', today) }}</div>
+            <label class="field field--wide"><span>Наименование</span><input name="name" placeholder="Например: Тонер за принтер"></label>
+            <label class="field"><span>Количество</span><input name="value" inputmode="numeric" placeholder="0"></label>
+            <label class="field"><span>Статус</span>
+                <select name="status">{% for key, label in status_labels.items() %}<option value="{{ key }}">{{ label }}</option>{% endfor %}</select>
+            </label>
+            <label class="field field--wide"><span>Бележка</span><textarea name="note" rows="3"></textarea></label>
+            <label class="field field--wide"><span>Документ (фактура, протокол)</span><input type="file" name="file"></label>
+        </div>
+        <div class="form-actions">
+            <a class="btn" href="{{ url_for('example_list') }}">Отказ</a>
+            <button class="btn primary" type="submit">Запази</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

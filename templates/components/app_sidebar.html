@@ -1,0 +1,29 @@
+{#- Единственото ляво меню. Пунктовете идват от MENU в config.py;
+    активният пункт се избира с {% set sidebar_active = '<key>' %} в страницата. -#}
+{% from "components/icons.html" import icon %}
+{% from "components/brand_logo.html" import brand_logo with context %}
+{% set _active = sidebar_active|default('') %}
+<aside class="context-sidebar app-shared-sidebar app-sidebar" id="contextSidebar" aria-label="Главно меню">
+    <a class="sidebar-brand clean-brand sidebar-brand-link" href="{{ url_for('dashboard') }}" aria-label="Към началото">
+        {{ brand_logo() }}
+    </a>
+    <div class="brand-divider"></div>
+    <nav class="sidebar-menu" aria-label="Модули">
+        {% for entry in menu %}
+            {% if 'items' in entry %}
+            <div class="sidebar-group">
+                <div class="sidebar-group-head"><span class="ico">{{ icon(entry.icon) }}</span><span>{{ entry.label }}</span></div>
+                {% for item in entry['items'] %}
+                <a class="sidebar-subitem {{ 'primary' if item.key == _active else '' }}" href="{{ menu_url(item) }}"{% if item.key == _active %} aria-current="page"{% endif %}>
+                    <span class="ico">{{ icon(item.icon) }}</span><span>{{ item.label }}</span>
+                </a>
+                {% endfor %}
+            </div>
+            {% else %}
+            <a class="sidebar-item {{ 'primary' if entry.key == _active else '' }}" href="{{ menu_url(entry) }}"{% if entry.key == _active %} aria-current="page"{% endif %}>
+                <span class="ico">{{ icon(entry.icon) }}</span><span>{{ entry.label }}</span>
+            </a>
+            {% endif %}
+        {% endfor %}
+    </nav>
+</aside>

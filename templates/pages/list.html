@@ -1,0 +1,15 @@
+{% extends "layouts/app_shell.html" %}
+{% set sidebar_active = 'nalichnosti' %}
+{% set header_title = 'Наличности' %}
+{% set header_breadcrumbs = [{'label': 'Начало', 'url': url_for('dashboard')}, {'label': 'Склад'}, {'label': 'Наличности'}] %}
+{% block content %}
+<div class="page">
+    <section class="dash-card">
+        <div class="dash-card__head">
+            <h2>Всички позиции</h2>
+            <a class="btn primary" href="{{ url_for('example_form') }}">Нова позиция</a>
+        </div>
+        {% include "pages/_table.html" %}
+    </section>
+</div>
+{% endblock %}

@@ -1,0 +1,16 @@
+<div class="table-wrap">
+    <table class="data-table">
+        <thead><tr><th>Код</th><th>Наименование</th><th>Последно движение</th><th class="num">Количество</th><th>Статус</th></tr></thead>
+        <tbody>
+        {% for row in rows %}
+            <tr>
+                <td class="mono">{{ row.code }}</td>
+                <td>{{ row.name }}</td>
+                <td class="mono">{{ row.date|bgdate }}</td>
+                <td class="num mono">{{ row.value }}</td>
+                <td><span class="status-dot status-dot--{{ row.status }}">{{ status_labels[row.status] }}</span></td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>

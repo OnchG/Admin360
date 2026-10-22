@@ -1,0 +1,11 @@
+{#- Поле за дата с български календар (дд.мм.гггг на екрана, гггг-мм-дд към сървъра).
+    Пример: {% from "components/date_input.html" import date_input %}{{ date_input('date', today) }} -#}
+{% macro date_input(name, value='', required=false) -%}
+<span class="app-date-control" data-app-date-control>
+    <input type="text" value="" placeholder="дд.мм.гггг" inputmode="numeric" maxlength="10" autocomplete="off" data-app-date-display{% if required %} required{% endif %}>
+    <input type="hidden" name="{{ name }}" value="{{ value }}" data-app-date-value>
+    <button type="button" class="app-date-trigger" data-app-date-trigger aria-label="Избери дата">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/></svg>
+    </button>
+</span>
+{%- endmacro %}

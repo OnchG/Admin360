@@ -1,0 +1,23 @@
+{% extends "layouts/app_shell.html" %}
+{% set sidebar_active = 'dashboard' %}
+{% set header_title = 'Табло' %}
+{% set header_subtitle = 'Обобщение за деня' %}
+{% set header_breadcrumbs = [{'label': 'Начало'}] %}
+{% block content %}
+<div class="page">
+    <section class="kpi-grid">
+        <article class="kpi-card"><span class="kpi-label">Позиции в склада</span><strong class="kpi-value">{{ rows|length }}</strong><span class="kpi-sub">примерни данни</span></article>
+        <article class="kpi-card"><span class="kpi-label">Последно движение</span><strong class="kpi-value">{{ rows[0].date|bgdate }}</strong><span class="kpi-sub">{{ rows[0].name }}</span></article>
+        <article class="kpi-card"><span class="kpi-label">Общо количество</span><strong class="kpi-value">{{ rows|sum(attribute='value') }}</strong><span class="kpi-sub">бройки във всички позиции</span></article>
+        <article class="kpi-card"><span class="kpi-label">За поръчка</span><strong class="kpi-value">{{ rows|rejectattr('status', 'equalto', 'ok')|list|length }}</strong><span class="kpi-sub">под минимума или изчерпани</span></article>
+    </section>
+
+    <section class="dash-card">
+        <div class="dash-card__head">
+            <h2>Складови наличности</h2>
+            <a class="btn" href="{{ url_for('example_list') }}">Всички наличности</a>
+        </div>
+        {% include "pages/_table.html" %}
+    </section>
+</div>
+{% endblock %}

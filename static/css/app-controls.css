@@ -1,0 +1,29 @@
+/* Shared form controls: Bulgarian date picker and localized file inputs. */
+.app-file-control{display:flex;align-items:center;gap:10px;min-height:40px;padding:5px 10px 5px 6px;border:1px solid rgba(148,163,184,.22);border-radius:9px;background:var(--c-input,#0b1725);color:#f8fafc;min-width:0}
+.app-file-control input[type="file"]{position:absolute!important;width:1px!important;height:1px!important;min-height:0!important;margin:0!important;padding:0!important;border:0!important;opacity:0!important;overflow:hidden!important;pointer-events:none}
+.app-file-button{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;min-height:30px;padding:0 12px;border:1px solid rgba(125,145,175,.42);border-radius:7px;background:var(--c-surface-2,#1b1f27);color:#edf6ff;font:inherit;font-size:12px;font-weight:800;cursor:pointer;white-space:nowrap}
+.app-file-button:hover{border-color:rgba(103,232,249,.58);background:#19354a}
+.app-file-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#9badbd;font-size:12px}
+.app-file-control.is-disabled{opacity:.55}.app-file-control.is-disabled .app-file-button{cursor:not-allowed}
+
+.app-date-control{position:relative;display:grid;grid-template-columns:minmax(0,1fr) 38px;gap:6px;align-items:center;min-width:0}
+.app-date-control input[data-app-date-display]{width:100%;min-height:40px;padding:8px 10px;border:1px solid rgba(148,163,184,.22);border-radius:9px;background:var(--c-input,#0b1725);color:#f8fafc;font:inherit;text-align:center;font-variant-numeric:tabular-nums;outline:none}
+.app-date-control input[data-app-date-display]:focus{border-color:rgba(103,232,249,.52);box-shadow:0 0 0 3px rgba(34,211,238,.08)}
+.app-date-trigger{height:40px;border:1px solid rgba(148,163,184,.22);border-radius:9px;background:var(--c-surface-2,#102338);color:var(--c-accent,#67e8f9);cursor:pointer;font-size:16px;line-height:1}
+.app-date-trigger:hover{border-color:rgba(103,232,249,.52);background:#153149}
+.app-bg-datepicker{position:fixed;z-index:9000;width:292px;padding:10px;border:1px solid rgba(119,136,190,.48);border-radius:12px;background:var(--c-surface,#0c1727);box-shadow:0 20px 55px rgba(0,0,0,.52);color:#eef3ff;font-family:"Sofia Sans","Segoe UI",sans-serif}
+.app-bg-datepicker[hidden]{display:none!important}
+.app-bg-datepicker-head{display:grid;grid-template-columns:32px 1fr 32px;align-items:center;gap:6px;margin-bottom:8px}
+.app-bg-datepicker-head button{height:30px;border:1px solid rgba(119,136,190,.28);border-radius:7px;background:#121f32;color:#eaf0ff;cursor:pointer;font-size:18px}
+.app-bg-datepicker-title{text-align:center;font-size:13px;font-weight:800;text-transform:capitalize}
+.app-bg-datepicker-weekdays,.app-bg-datepicker-days{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+.app-bg-datepicker-weekdays span{padding:4px 0;color:#96a4bd;text-align:center;font-size:10px;font-weight:800;text-transform:uppercase}
+.app-bg-datepicker-day{height:32px;border:1px solid transparent;border-radius:7px;background:transparent;color:#dce5f4;cursor:pointer;font-size:12px;font-variant-numeric:tabular-nums}
+.app-bg-datepicker-day:hover{border-color:rgba(126,142,199,.42);background:#17253a}
+.app-bg-datepicker-day.is-outside{color:#5f6f87}.app-bg-datepicker-day.is-today{border-color:var(--c-accent,#2dd4bf)}.app-bg-datepicker-day.is-selected{background:var(--c-accent,#2dd4bf);color:var(--c-accent-ink,#04201c);font-weight:800}
+.app-bg-datepicker-actions{display:flex;justify-content:space-between;gap:8px;margin-top:9px;padding-top:8px;border-top:1px solid rgba(119,136,190,.18)}
+.app-bg-datepicker-actions button{border:0;background:transparent;color:#aeb9d7;cursor:pointer;font-size:11px;font-weight:750}.app-bg-datepicker-actions button:hover{color:#fff}
+
+/* Keep localized file controls from growing when a filename is selected. */
+.app-file-control{width:100%;max-width:100%;box-sizing:border-box;overflow:hidden}
+.app-file-name{flex:1 1 0;min-width:0;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}

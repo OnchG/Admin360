@@ -1,0 +1,47 @@
+{#- Единственият header: пътека, заглавие, дата/час и профил. -#}
+<header class="system-header system-sticky-header" data-system-header>
+    <div class="system-header__left">
+        <nav class="system-breadcrumbs" aria-label="Навигационна пътека">
+            {% for item in header_breadcrumbs|default([]) %}
+                {% if not loop.last and item.url %}
+                    <a href="{{ item.url }}">{{ item.label }}</a>
+                    <span class="system-breadcrumbs__separator" aria-hidden="true">›</span>
+                {% else %}
+                    <span class="system-breadcrumbs__current" aria-current="page">{{ item.label }}</span>
+                {% endif %}
+            {% endfor %}
+        </nav>
+        <div class="system-header__title-row">
+            <h1 class="system-header__title">{{ header_title|default(app_name) }}</h1>
+            {% if header_subtitle %}<span class="system-header__subtitle">{{ header_subtitle }}</span>{% endif %}
+        </div>
+    </div>
+
+    <div class="system-header__right">
+        {% if header_extra_template %}{% include header_extra_template %}{% endif %}
+        <div class="system-header__clock" aria-label="Текущи дата и час">
+            <span class="system-header__calendar" aria-hidden="true">▣</span>
+            <div>
+                <strong data-system-date></strong>
+                <small data-system-time></small>
+            </div>
+        </div>
+
+        <details class="system-profile">
+            <summary class="system-profile__summary">
+                <img class="system-profile__avatar" src="{{ url_for('static', filename=current_user.photo) }}" alt="Профилна снимка">
+                <span class="system-profile__meta">
+                    <strong>{{ current_user.name }}</strong>
+                    <small>{{ current_user.position }}</small>
+                </span>
+                <span class="system-profile__chevron" aria-hidden="true">
+                    <svg viewBox="0 0 20 20" focusable="false" aria-hidden="true"><path d="M5.5 7.5 10 12l4.5-4.5" /></svg>
+                </span>
+            </summary>
+            <div class="system-profile__menu">
+                <a href="{{ url_for('profile') }}">Моят профил</a>
+                <a href="{{ url_for('placeholder', slug='nastroiki') }}">Настройки</a>
+            </div>
+        </details>
+    </div>
+</header>

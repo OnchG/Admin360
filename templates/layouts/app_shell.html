@@ -1,0 +1,48 @@
+{#- Обща рамка на всяка страница: ляво меню, header, съдържание и footer.
+    Нова страница:
+      {% extends "layouts/app_shell.html" %}
+      {% set sidebar_active = 'list' %}            ключ от MENU в config.py
+      {% set header_title = 'Заглавие' %}{% set header_subtitle = '...' %}
+      {% set header_breadcrumbs = [{'label': 'Начало', 'url': url_for('dashboard')}, {'label': 'Заглавие'}] %}
+      {% block head %}<link ...>{% endblock %}
+      {% block content %}...{% endblock %}
+      {% block scripts %}<script>...</script>{% endblock %} -#}
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block title %}{{ header_title ~ ' · ' if header_title else '' }}{{ app_name }}{% endblock %}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sofia+Sans:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/app-header-fixed.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/app-header.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/app-controls.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/app-sidebar.css') }}">
+{% block head %}{% endblock %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/app-theme.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/app-shell.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/app-content.css') }}">
+{% block head_last %}{% endblock %}
+<script src="{{ url_for('static', filename='js/app-ux.js') }}" defer></script>
+</head>
+<body class="app-body {% block body_class %}{% endblock %}">
+<div class="app-shell">
+    {% include "components/app_sidebar.html" %}
+    <section class="app-workspace">
+        {% include "components/system_header.html" %}
+        <main class="app-main">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% for category, message in messages %}<div class="app-flash app-flash--{{ category }}" role="status">{{ message }}</div>{% endfor %}
+            {% endwith %}
+            {% block content %}{% endblock %}
+        </main>
+        {% include "components/app_footer.html" %}
+    </section>
+</div>
+{% block scripts %}{% endblock %}
+<script src="{{ url_for('static', filename='js/app-controls.js') }}"></script>
+<script src="{{ url_for('static', filename='js/app-header.js') }}"></script>
+</body>
+</html>

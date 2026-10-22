@@ -1,0 +1,17 @@
+{#- Логото: знак (пръстен с точка) + името на приложението от config.py.
+    Цветът на текста следва родителя, акцентът е --logo-accent. Сменете знака тук, ако имате собствено лого. -#}
+{% macro brand_logo() -%}
+<span class="app-logo" role="img" aria-label="{{ app_name }}">
+    <svg class="app-logo__mark" viewBox="0 0 48 48" aria-hidden="true">
+        <g fill="none" stroke="var(--logo-accent,#22d3ee)" stroke-linecap="round" style="filter:var(--logo-glow,drop-shadow(0 0 4px rgba(34,211,238,.5)))">
+            <path d="M16.6 9.2A17 17 0 1 1 9.4 33" stroke-width="3.2"/>
+            <path d="M26 7.6A14 14 0 0 1 38.6 20" stroke-width="1.6" opacity=".7"/>
+            <circle cx="9.4" cy="33" r="3.4" stroke-width="2.4"/>
+        </g>
+    </svg>
+    <span class="app-logo__text">
+        <strong>{{ app_name }}</strong>
+        {% if app_tagline %}<small>{{ app_tagline }}</small>{% endif %}
+    </span>
+</span>
+{%- endmacro %}

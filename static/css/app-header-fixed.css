@@ -1,0 +1,206 @@
+/* global fixed header behavior */
+.system-sticky-header {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 1500 !important;
+    isolation: isolate;
+    background: rgba(2, 6, 23, .94);
+    -webkit-backdrop-filter: blur(18px);
+    backdrop-filter: blur(18px);
+    box-shadow: 0 10px 28px rgba(0, 0, 0, .18);
+}
+
+/* Area-based screens already use a dedicated scrollable content pane.
+   Keep the shared header anchored above that pane without changing layout. */
+.area-shell .workspace > .system-sticky-header {
+    position: absolute !important;
+    z-index: 1500 !important;
+}
+
+/* Admin layout: keep the global context bar visible while the page scrolls. */
+.admin-main > .system-sticky-header {
+    margin-left: -26px;
+    margin-right: -26px;
+    padding-left: 26px;
+    padding-right: 26px;
+}
+
+@media (max-width: 820px) {
+    .admin-main > .system-sticky-header {
+        margin-left: -16px;
+        margin-right: -16px;
+        padding-left: 16px;
+        padding-right: 16px;
+    }
+}
+
+@media (max-width: 1100px) {
+    .area-shell .workspace > .system-sticky-header {
+        position: sticky !important;
+        left: auto !important;
+        right: auto !important;
+        top: 0 !important;
+        margin: 0 !important;
+        border-radius: 0 !important;
+    }
+}
+
+/* Full-width application bars: headers are structural chrome, not floating cards. */
+.system-sticky-header {
+    border-radius: 0 !important;
+}
+
+/* Area workspace: span from the sidebar edge to the right viewport edge. */
+.area-shell .workspace > .system-sticky-header,
+.area-shell .workspace > .topbar-actions-only,
+.area-shell .workspace > .topbar-with-title {
+    left: 0 !important;
+    right: 0 !important;
+    top: 0 !important;
+    width: auto !important;
+    margin: 0 !important;
+    border-left: 0 !important;
+    border-right: 0 !important;
+    border-top: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, .20) !important;
+}
+
+/* Admin workspace: bleed through the horizontal page padding. */
+.admin-main > .system-sticky-header {
+    width: auto !important;
+    margin-top: 0 !important;
+    margin-left: -26px !important;
+    margin-right: -26px !important;
+    padding-left: 26px !important;
+    padding-right: 26px !important;
+    border-left: 0 !important;
+    border-right: 0 !important;
+    border-top: 0 !important;
+    border-radius: 0 !important;
+}
+
+/* Standalone full-width header implementations. */
+#headerBar.system-sticky-header,
+#adminTopbar.system-sticky-header,
+.main-topbar.system-sticky-header,
+.measurements-topbar.system-sticky-header {
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    border-left: 0 !important;
+    border-right: 0 !important;
+    border-top: 0 !important;
+    border-radius: 0 !important;
+}
+
+@media (max-width: 820px) {
+    .admin-main > .system-sticky-header {
+        margin-left: -16px !important;
+        margin-right: -16px !important;
+        padding-left: 16px !important;
+        padding-right: 16px !important;
+    }
+}
+
+/* ==========================================================
+   Global header layout offset
+   The application bar owns its own row; page backgrounds and
+   content must begin below it instead of rendering underneath.
+   ========================================================== */
+:root {
+    --system-header-height: 72px;
+}
+
+.system-sticky-header {
+    min-height: var(--system-header-height) !important;
+    background: #07111f !important;
+}
+
+/* AREA: keep the header in the workspace flow and reserve its height. */
+.area-shell .workspace {
+    display: flex;
+    flex-direction: column;
+}
+
+.area-shell .workspace > .system-sticky-header {
+    position: sticky !important;
+    top: 0 !important;
+    left: auto !important;
+    right: auto !important;
+    flex: 0 0 var(--system-header-height);
+    width: 100% !important;
+}
+
+.area-shell .workspace > .slider {
+    flex: 1 1 auto;
+    height: calc(100vh - var(--system-header-height)) !important;
+    min-height: 0;
+    margin-top: 0 !important;
+}
+
+.area-shell .workspace > .slider .slide {
+    height: calc(100vh - var(--system-header-height)) !important;
+}
+
+.area-shell .workspace > .area-module-content {
+    flex: 1 1 auto;
+    height: calc(100vh - var(--system-header-height)) !important;
+    min-height: 0;
+    padding-top: 28px !important;
+}
+
+/* Admin header remains sticky and participates in normal document flow. */
+.admin-main > .system-sticky-header {
+    position: sticky !important;
+    top: 0 !important;
+}
+
+/* Common standalone layouts: sticky headers retain their own layout row. */
+#headerBar.system-sticky-header,
+#adminTopbar.system-sticky-header,
+.main-topbar.system-sticky-header,
+.measurements-topbar.system-sticky-header {
+    position: sticky !important;
+    top: 0 !important;
+}
+
+@media (max-width: 1100px) {
+    :root {
+        --system-header-height: 64px;
+    }
+
+    .area-shell .workspace {
+        display: block;
+    }
+
+    .area-shell .workspace > .system-sticky-header {
+        position: sticky !important;
+        min-height: var(--system-header-height) !important;
+    }
+
+    .area-shell .workspace > .slider,
+    .area-shell .workspace > .slider .slide,
+    .area-shell .workspace > .area-module-content {
+        height: auto !important;
+        min-height: calc(100vh - var(--system-header-height));
+    }
+}
+
+/* ==========================================================
+   header typography fallback for standalone screens
+   ========================================================== */
+.system-sticky-header,
+.system-sticky-header *,
+#headerBar,
+#headerBar *,
+#adminTopbar,
+#adminTopbar *,
+.main-topbar,
+.main-topbar *,
+.measurements-topbar,
+.measurements-topbar * {
+    font-family: "Sofia Sans", sans-serif !important;
+}
