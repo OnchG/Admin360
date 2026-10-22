@@ -160,9 +160,10 @@ def build(warehouse_id, as_of=None):
 def _sheet(ws, rows, holders, cells, with_price, mol, warehouse_id, as_of):
     columns = ["№ по ред", "НАИМЕНОВАНИЕ", "Мярка", "СЧЕТОВОДНА НАЛИЧНОСТ"] + (["ЕДИНИЧНА ЦЕНА"] if with_price else [])
     first_holder = len(columns) + 1
-    holder_cols = [(h["card_id"], h["label"]) for h in holders] + [("reserve", "Авариен резерв")]
+    holder_cols = [(h["card_id"], h["label"]) for h in holders] + [("reserve", "АВАРИЕН РЕЗЕРВ")]
     columns += [label for _, label in holder_cols]
-    last_card = first_holder + len(holders) - 1  # без аварийния резерв: той е на склад
+    last_card = first_holder + len(holders) - 1  # ПО КАРТОН е до аварийния резерв, без него
+    reserve = get_column_letter(last_card + 1)
     total_col = len(columns) + 1
     columns += TOTALS
     col = {name: get_column_letter(total_col + i) for i, name in enumerate(TOTALS)}
@@ -181,7 +182,7 @@ def _sheet(ws, rows, holders, cells, with_price, mol, warehouse_id, as_of):
         vertical = i >= first_holder and name != "ЕДИНИЧНА ЦЕНА"
         cell.alignment = Alignment(horizontal="center", vertical="bottom" if vertical else "center",
                                    text_rotation=90 if vertical else 0, wrap_text=True)
-        number = ws.cell(10, i, i - first_holder + 1 if first_holder <= i < first_holder + len(holder_cols) else None)
+        number = ws.cell(10, i, i - first_holder + 1 if first_holder <= i <= last_card else None)
         number.font, number.border, number.alignment = _font(True), BOX, Alignment(horizontal="center")
     ws.row_dimensions[9].height = 138.75
     ws.freeze_panes = "E11" if not with_price else "F11"
@@ -213,8 +214,9 @@ def _sheet(ws, rows, holders, cells, with_price, mol, warehouse_id, as_of):
         ws.cell(r, 3).number_format = "@"
         if stocked:
             cards_sum = f"SUM({get_column_letter(first_holder)}{r}:{get_column_letter(last_card)}{r})" if holders else "0"
-            formulas = [f"={cards_sum}", f"=D{r}-{col['ПО КАРТОН']}{r}", None,
-                        f"={col['ПО КАРТОН']}{r}+{col['В СКЛАД']}{r}", f"={col['ФАКТИЧЕСКА НАЛИЧНОСТ']}{r}-D{r}",
+            # В СКЛАД = счетоводна наличност − авариен резерв − по картон; фактическата ги събира обратно
+            formulas = [f"={cards_sum}", f"=D{r}-{reserve}{r}-{col['ПО КАРТОН']}{r}", None,
+                        f"={col['ПО КАРТОН']}{r}+{reserve}{r}+{col['В СКЛАД']}{r}", f"={col['ФАКТИЧЕСКА НАЛИЧНОСТ']}{r}-D{r}",
                         f"=D{r}-{col['ФАКТИЧЕСКА НАЛИЧНОСТ']}{r}"]
         else:
             formulas = [None] * len(TOTALS)
@@ -228,8 +230,9 @@ def _sheet(ws, rows, holders, cells, with_price, mol, warehouse_id, as_of):
         widths["E"] = 9
     for letter, width in widths.items():
         ws.column_dimensions[letter].width = width
-    for i in range(first_holder, total_col):
+    for i in range(first_holder, last_card + 1):
         ws.column_dimensions[get_column_letter(i)].width = 3.43
+    ws.column_dimensions[reserve].width = TOTAL_WIDTHS[0]
     for i, width in enumerate(TOTAL_WIDTHS):
         ws.column_dimensions[get_column_letter(total_col + i)].width = width
     ws.page_setup.orientation = "landscape"
