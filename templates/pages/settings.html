@@ -1,0 +1,16 @@
+{% extends "layouts/app_shell.html" %}
+{% set sidebar_active = '' %}
+{% set header_title = 'Настройки' %}
+{% set header_breadcrumbs = [{'label': 'Начало', 'url': url_for('dashboard')}, {'label': 'Настройки'}] %}
+{% block content %}
+<div class="page page--narrow">
+    <form class="dash-card form-card" method="post">
+        <div class="dash-card__head"><h2>Склад</h2></div>
+        <div class="form-grid">
+            <label class="field"><span>{{ defaults.stock_value_threshold[1] }}</span><input name="stock_value_threshold" inputmode="decimal" value="{{ threshold }}" required></label>
+        </div>
+        <p class="form-hint">{{ defaults.stock_value_threshold[2] }} При смяна на прага позициите остават в групата, в която са заведени; сменя се само надписът („под {{ threshold }} лв“).</p>
+        <div class="form-actions"><button class="btn primary" type="submit">Запази</button></div>
+    </form>
+</div>
+{% endblock %}

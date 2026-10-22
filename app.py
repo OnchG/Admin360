@@ -10,13 +10,19 @@ from flask import Flask, abort, flash, redirect, render_template, request, url_f
 import config
 import db
 import personnel
+import settings
+import stock
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = "smeni-tozi-kluch"  # сменете с произволен низ преди реална употреба
 db.init_app(app)
 app.register_blueprint(personnel.bp)
+app.register_blueprint(settings.bp)
+app.register_blueprint(stock.bp)
 with app.app_context():
     personnel.init_db()
+    settings.init_db()
+    stock.init_db()
 
 # Страници, които още нямат съдържание: виж PLACEHOLDERS в config.py.
 PLACEHOLDERS = config.PLACEHOLDERS

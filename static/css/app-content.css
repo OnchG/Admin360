@@ -89,3 +89,9 @@
 .form-hint--bad{color:#fca5a5}
 .form-actions__left{margin-right:auto}
 @media(max-width:700px){.form-grid--3{grid-template-columns:1fr}}
+
+/* склад: търсене и отметка във формата */
+.stock-search{display:flex;gap:8px;margin:0 0 12px}
+.stock-search input{flex:1}
+.field--check{flex-direction:row;align-items:center;gap:8px;align-self:end;min-height:38px}
+.field--check>span{font-weight:500}

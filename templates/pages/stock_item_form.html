@@ -1,0 +1,38 @@
+{% extends "layouts/app_shell.html" %}
+{% set is_new = not item.id %}
+{% set title = 'Нова позиция' if is_new else (item.name or item.inv_number) %}
+{% set sidebar_active = 'nalichnosti' %}
+{% set header_title = title %}
+{% set header_subtitle = 'Склад' %}
+{% set header_breadcrumbs = [{'label': 'Начало', 'url': url_for('dashboard')}, {'label': 'Склад'}, {'label': 'Наличности', 'url': url_for('stock.items', sklad=item.warehouse_id, grupa=item.value_class)}, {'label': title}] %}
+{% block content %}
+<div class="page page--narrow">
+    <form class="dash-card form-card" method="post">
+        <div class="dash-card__head"><h2>{{ 'Нова позиция' if is_new else 'Данни на позицията' }}</h2></div>
+        <div class="form-grid form-grid--3">
+            <label class="field"><span>Склад</span>
+                <select name="warehouse_id">{% for w in warehouses %}<option value="{{ w.id }}"{% if w.id == item.warehouse_id %} selected{% endif %}>{{ w.name }}</option>{% endfor %}</select>
+            </label>
+            <label class="field"><span>Група</span>
+                <select name="value_class">{% for c, label in class_labels.items() %}<option value="{{ c }}"{% if c == item.value_class %} selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+            </label>
+            <label class="field"><span>Инвентарен номер</span><input name="inv_number" value="{{ item.inv_number or '' }}" required{% if is_new %} autofocus{% endif %}></label>
+            <label class="field field--wide"><span>Наименование</span><input name="name" value="{{ item.name or '' }}" required></label>
+            <label class="field"><span>Мярка</span><input name="unit" value="{{ item.unit or 'бр' }}" list="units"><datalist id="units"><option value="бр"><option value="к/кт"><option value="м"><option value="кг"></datalist></label>
+            <label class="field"><span>Количество</span><input name="quantity" inputmode="decimal" value="{{ fmt_qty(item.quantity) }}"></label>
+            <label class="field field--wide"><span>МОЛ (материално отговорно лице)</span>
+                <select name="mol_employee_id" required>
+                    <option value="">Изберете служител</option>
+                    {% for e in employees %}<option value="{{ e.id }}"{% if e.id == item.mol_employee_id %} selected{% endif %}>{{ e.full_name }}</option>{% endfor %}
+                </select>
+            </label>
+            <label class="field field--wide"><span>Бележка</span><textarea name="note" rows="2">{{ item.note or '' }}</textarea></label>
+        </div>
+        <p class="form-hint">Материал, който още не е получен, се води с количество 0.</p>
+        <div class="form-actions">
+            <a class="btn" href="{{ url_for('stock.items', sklad=item.warehouse_id, grupa=item.value_class) }}">Отказ</a>
+            <button class="btn primary" type="submit">Запази</button>
+        </div>
+    </form>
+</div>
+{% endblock %}
