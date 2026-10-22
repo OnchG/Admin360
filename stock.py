@@ -172,15 +172,15 @@ def parse_line(line):
 
 def import_lines(text, value_class):
     """Записва редовете. Позиция с еднакви склад, група, инв. номер и наименование се обновява, а ако
-    се повтаря в същия импорт, количествата се събират. Празно количество = 0 (още не е получено).
+    се повтаря в същия импорт, повторният ред се пропуска. Празно количество = 0 (още не е получено).
 
     Връща отчет {"added", "updated", "errors": [(№ на ред, ред, причина)]}.
     """
     db = get_db()
     known = {r["id"] for r in warehouses()}
-    report = {"added": 0, "updated": 0, "merged": [], "errors": []}
+    report = {"added": 0, "updated": 0, "repeated": [], "errors": []}
     mol_cache = {}
-    seen = {}  # ключ -> id на позицията, записана в този импорт
+    seen = set()  # позиции, записани в този импорт
     for number, line in enumerate(text.splitlines(), 1):
         if not line.strip():
             continue
@@ -203,28 +203,26 @@ def import_lines(text, value_class):
         now = _now()
         key = (item["warehouse_id"], item["inv_number"], item["name"].casefold())
         if key in seen:
-            db.execute("UPDATE stock_items SET quantity = quantity + ?, updated_at = ? WHERE id = ?",
-                       (quantity, now, seen[key]))
-            report["merged"].append((number, line))
+            report["repeated"].append((number, line))
             continue
+        seen.add(key)
         existing = db.execute(
             "SELECT id FROM stock_items WHERE warehouse_id = ? AND value_class = ? AND inv_number = ?"
             " AND lower(name) = lower(?)",
             (item["warehouse_id"], value_class, item["inv_number"], item["name"])).fetchone()
         if existing:
-            seen[key] = existing["id"]
             db.execute(
                 "UPDATE stock_items SET value_class = ?, name = ?, unit = ?, quantity = ?, mol_employee_id = ?, updated_at = ? WHERE id = ?",
                 (value_class, item["name"], item["unit"], quantity, mol_id, now, existing["id"]),
             )
             report["updated"] += 1
         else:
-            seen[key] = db.execute(
+            db.execute(
                 "INSERT INTO stock_items (warehouse_id, value_class, inv_number, name, unit, quantity,"
                 " mol_employee_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (item["warehouse_id"], value_class, item["inv_number"], item["name"], item["unit"], quantity,
                  mol_id, now, now),
-            ).lastrowid
+            )
             report["added"] += 1
     return report
 

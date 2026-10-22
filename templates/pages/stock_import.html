@@ -9,7 +9,7 @@
         <div class="dash-card__head"><h2>Поставете редовете от таблицата</h2></div>
         <p class="form-hint">Всеки ред: <code>склад;МОЛ;инвентарен номер;наименование</code>, после мярка и количество в отделни колони.
             Склад 1 е Кричим, склад 2 е Цанков камък. МОЛ се търси сред служителите по име и фамилия.
-            Ред без количество се записва с 0 (още не е получено). Позиция със същия инвентарен номер и наименование в същата група се обновява; ако се повтаря в поставения текст, количествата се събират.</p>
+            Ред без количество се записва с 0 (още не е получено). Позиция със същия инвентарен номер и наименование в същата група се обновява; ако се повтаря в поставения текст, повторният ред се пропуска.</p>
         <div class="form-grid">
             <label class="field"><span>Група</span>
                 <select name="value_class">{% for c, label in class_labels.items() %}<option value="{{ c }}"{% if c == value_class %} selected{% endif %}>{{ label }}</option>{% endfor %}</select>
@@ -24,7 +24,7 @@
     {% if report %}
     <section class="dash-card">
         <div class="dash-card__head"><h2>Резултат</h2><span class="count-note">добавени {{ report.added }}, обновени {{ report.updated }}, грешки {{ report.errors|length }}</span></div>
-        {% if report.merged %}<p class="form-hint">Повторени редове, събрани с предходния: {% for n, line in report.merged %}ред {{ n }}{% if not loop.last %}, {% endif %}{% endfor %}.</p>{% endif %}
+        {% if report.repeated %}<p class="form-hint form-hint--bad">Пропуснати повторени редове: {% for n, line in report.repeated %}ред {{ n }}{% if not loop.last %}, {% endif %}{% endfor %}.</p>{% endif %}
         {% if report.errors %}
         <div class="table-wrap">
             <table class="data-table">
