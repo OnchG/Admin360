@@ -22,7 +22,7 @@ from db import get_db
 FONT = "Sofia Sans"
 # Ред на колоните, както е в таблицата на потребителя; служителите извън списъка са след тях по азбучен ред.
 COLUMN_ORDER = [
-    "Онник Гюлян", "Ангел Милев", "Петър Коилов", "Николай Папалаков", "Стоян Коджаманов", "Величка Пелтекова",
+    "Стефан Койчев", "Владо Бояров", "Онник Гюлян", "Ангел Милев", "Петър Коилов", "Николай Папалаков", "Стоян Коджаманов", "Величка Пелтекова",
     "Павел Павлов", "Спаска Сокерова", "Иван Марков", "Петрунка Николова", "Силвия Чучулигова", "Ивелин Иванов",
     "Стоян Иванов", "Красимир Николов", "Данаил Щерев", "Анна Челебиева", "Димитър Костадинов", "Димо Седянков",
     "Ангел Чучулигов", "Наско Тарашев", "Костадин Павлов", "Исмаил Татаров", "Борис Коилов", "Ангел Танин",
@@ -44,7 +44,7 @@ def _font(bold=False, size=10):
 
 
 def _holders(db, warehouse_id):
-    """Колоните с картони: личните (по COLUMN_ORDER), после по съоръжения и автомобилите."""
+    """Колоните с картони: служителите (по COLUMN_ORDER), после по съоръжения и автомобилите."""
     from cards import EFF
     rows = db.execute(
         "SELECT c.id, c.kind, c.title, e.first_name, e.last_name FROM cards c LEFT JOIN employees e ON e.id = c.employee_id"
@@ -57,6 +57,12 @@ def _holders(db, warehouse_id):
         rank = COLUMN_ORDER.index(label) if label in COLUMN_ORDER else len(COLUMN_ORDER)
         holders.append({"card_id": r["id"], "label": label,
                         "key": ({"personal": 0, "facility": 1, "vehicle": 2}[r["kind"]], rank, label.casefold())})
+    # служителите от таблицата без личен картон (Стефан Койчев, Владо Бояров) също имат колона, празна
+    labels = {h["label"] for h in holders}
+    for e in db.execute("SELECT id, first_name, last_name FROM employees WHERE left_on IS NULL"):
+        label = f"{e['first_name']} {e['last_name']}"
+        if label in COLUMN_ORDER and label not in labels:
+            holders.append({"card_id": f"employee-{e['id']}", "label": label, "key": (0, COLUMN_ORDER.index(label), label)})
     return sorted(holders, key=lambda h: h["key"])
 
 
