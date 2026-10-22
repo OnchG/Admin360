@@ -1,0 +1,35 @@
+{% extends "layouts/app_shell.html" %}
+{% set is_new = not item.id %}
+{% set title = 'Нова позиция в резерва' if is_new else item.name %}
+{% set sidebar_active = 'avariyen_rezerv' %}
+{% set header_title = title %}
+{% set header_subtitle = 'Авариен резерв' %}
+{% set header_breadcrumbs = [{'label': 'Начало', 'url': url_for('dashboard')}, {'label': 'Склад'}, {'label': 'Авариен резерв', 'url': url_for('reserve.index', sklad=item.warehouse_id)}, {'label': title}] %}
+{% block content %}
+<div class="page page--narrow">
+    <form class="dash-card form-card" method="post">
+        <div class="dash-card__head"><h2>{{ 'Нова позиция' if is_new else 'Данни на позицията' }}</h2></div>
+        <div class="form-grid form-grid--3">
+            <label class="field"><span>Склад</span>
+                <select name="warehouse_id">{% for w in warehouses %}<option value="{{ w.id }}"{% if w.id == item.warehouse_id %} selected{% endif %}>{{ w.name }}</option>{% endfor %}</select>
+            </label>
+            <label class="field field--wide"><span>Вид</span><input name="category" value="{{ item.category or '' }}" required{% if is_new %} autofocus{% endif %}></label>
+            <label class="field field--wide"><span>Наименование / характеристики</span><input name="name" value="{{ item.name or '' }}"></label>
+            <label class="field"><span>Номера</span><input name="numbers" value="{{ item.numbers or '' }}" placeholder="9-020003"></label>
+            <label class="field"><span>Мярка</span><input name="unit" value="{{ item.unit or 'бр.' }}"></label>
+            <label class="field"><span>Количество</span><input name="quantity" inputmode="decimal" value="{{ fmt_qty(item.quantity) }}"></label>
+            <label class="field"><span>Стойност, лв</span><input name="value" inputmode="decimal" value="{{ fmt_qty(item.value) }}"></label>
+            <label class="field field--wide"><span>Бележка</span><textarea name="note" rows="2">{{ item.note or '' }}</textarea></label>
+        </div>
+        <p class="form-hint">Няколко номера се пишат с интервал. Номерата 9-… се сверяват с наличното в склада; останалите (SAP, ЛПС) ще се свържат на следващ етап.</p>
+        <div class="form-actions">
+            {% if not is_new %}<button class="btn danger form-actions__left" type="submit" form="delete-form">Изтрий</button>{% endif %}
+            <a class="btn" href="{{ url_for('reserve.index', sklad=item.warehouse_id) }}">Отказ</a>
+            <button class="btn primary" type="submit">Запази</button>
+        </div>
+    </form>
+    {% if not is_new %}
+    <form id="delete-form" method="post" action="{{ url_for('reserve.delete', item_id=item.id) }}" data-ux-skip onsubmit="return confirm('Да се изтрие ли позицията от аварийния резерв?')"></form>
+    {% endif %}
+</div>
+{% endblock %}

@@ -109,3 +109,24 @@
 .inline-form{display:grid;grid-template-columns:120px 1fr 1fr 100px 150px auto;gap:8px;align-items:end;margin-top:12px;padding-top:12px;border-top:1px solid var(--c-line)}
 @media(max-width:900px){.inline-form{grid-template-columns:1fr 1fr}}
 .nowrap{white-space:nowrap}
+/* Авариен резерв */
+.kpi-value small{font-size:13px;color:var(--c-muted);font-weight:400}
+.reserve-bar{display:flex;gap:2px;height:14px;margin:4px 0 12px}
+.reserve-bar__seg{min-width:6px;border-radius:4px;background:var(--c-line-2)}
+.reserve-bar__seg--ok{background:var(--s-ok)}
+.reserve-bar__seg--warn{background:var(--s-warn)}
+.reserve-bar__seg--bad{background:var(--s-bad)}
+.reserve-bar__seg:hover{opacity:.8}
+.reserve-legend{display:flex;flex-wrap:wrap;gap:6px 18px}
+.reserve-legend__item{font-size:13px;display:inline-flex;gap:8px;align-items:center;padding:4px 8px;border-radius:var(--r-sm);color:inherit;text-decoration:none;border:1px solid transparent}
+.reserve-legend__item:hover,.reserve-legend__item.is-active{border-color:var(--c-line-2);background:var(--c-surface-2)}
+.status-dot--none::before{background:transparent;border:1.5px solid var(--c-muted)}
+.reserve-group th{text-align:left;background:var(--c-surface-2);color:var(--c-text);font-size:13px;text-transform:none;letter-spacing:0}
+.reserve-sub{font-size:12px;color:var(--c-muted);margin-top:2px}
+.reserve-numbers{font-size:12px;line-height:1.5;white-space:nowrap}
+.reserve-cover{min-width:170px}
+.meter{height:6px;border-radius:3px;background:var(--c-surface-3);overflow:hidden;margin:2px 0 4px}
+.meter span{display:block;height:100%;border-radius:3px;background:var(--c-muted)}
+.meter--ok span{background:var(--s-ok)}
+.meter--warn span{background:var(--s-warn)}
+.meter--bad span{background:var(--s-bad)}
