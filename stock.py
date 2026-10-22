@@ -15,7 +15,7 @@ import os
 import re
 from datetime import datetime
 
-from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
+from flask import Blueprint, abort, flash, jsonify, redirect, render_template, request, url_for
 
 import settings
 from db import get_db
@@ -254,7 +254,7 @@ def items():
     if query:
         needle = query.casefold()
         rows = [r for r in rows if needle in r["name"].casefold() or needle in r["inv_number"].casefold()]
-    from cards import allocate, issued_by_inv  # cards импортира stock
+    from cards import allocate, holders_by_inv, issued_by_inv  # cards импортира stock
     all_rows = get_db().execute("SELECT id, inv_number, name, value_class, quantity FROM stock_items WHERE warehouse_id = ?",
                                 (warehouse_id,)).fetchall()
     issued = allocate(all_rows, issued_by_inv(warehouse_id))
@@ -266,6 +266,7 @@ def items():
         value_class=value_class, query=query, counts=counts,
         class_labels={c: class_label(c, threshold) for c in VALUE_CLASSES},
         missing_count=sum(1 for r in rows if not r["quantity"]),
+        holders=holders_by_inv(warehouse_id), fmt_qty=fmt_qty,
     )
 
 
@@ -334,6 +335,39 @@ def _save(data, item_id=None):
                    f" VALUES ({', '.join('?' for _ in cols)}, ?, ?)", (*values, _now(), _now()))
     db.commit()
     return None
+
+
+@bp.route("/tarsene")
+def lookup():
+    """Позиции от склада по инв. номер или наименование (за попълване на картони): JSON.
+
+    Един номер може да е на няколко позиции (под и над прага): връща се по един запис на номер,
+    с наименованието на позицията извън аварийния резерв, ако има такава.
+    """
+    from cards import issued_by_inv  # cards импортира stock
+    warehouse_id = request.args.get("sklad", type=int) or 1
+    inv, query = request.args.get("inv", "").strip(), request.args.get("q", "").strip().casefold()
+    rows = get_db().execute("SELECT inv_number, name, unit, quantity, value_class FROM stock_items WHERE warehouse_id = ?"
+                            " ORDER BY inv_number, value_class DESC", (warehouse_id,)).fetchall()
+    if inv:
+        rows = [r for r in rows if r["inv_number"] == inv]
+    elif query:
+        rows = [r for r in rows if r["inv_number"].casefold().startswith(query) or query in r["name"].casefold()]
+    else:
+        rows = []
+    issued = issued_by_inv(warehouse_id)
+    found = {}
+    for r in rows:
+        entry = found.setdefault(r["inv_number"], {"inv": r["inv_number"], "names": [], "unit": r["unit"], "total": 0})
+        entry["names"].append(r["name"])
+        entry["total"] += r["quantity"]
+    result = []
+    for entry in list(found.values())[:30]:
+        names = sorted(entry["names"], key=lambda n: "РЕЗЕРВ" in n.upper())
+        on_shelf = entry["total"] - issued.get(entry["inv"], 0)
+        result.append({"inv": entry["inv"], "name": names[0], "names": names, "unit": entry["unit"],
+                       "total": fmt_qty(entry["total"]), "on_shelf": fmt_qty(on_shelf)})
+    return jsonify(result)
 
 
 @bp.route("/poziciya/nova", methods=["GET", "POST"])

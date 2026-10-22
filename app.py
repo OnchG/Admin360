@@ -45,6 +45,8 @@ STATUS_LABELS = {"ok": "Налично", "warn": "Под минимума", "bad
 @app.template_filter("bgdate")
 def bgdate(value):
     """Дата във формат дд.мм.гггг."""
+    if isinstance(value, str) and value:
+        value = date.fromisoformat(value[:10])
     return value.strftime("%d.%m.%Y") if value else ""
 
 

@@ -10,17 +10,19 @@
         <div class="dash-card__head">
             <h2>{{ card.title }}{% if employee %} <span class="count-note">{{ employee.position }}</span>{% endif %}</h2>
             <div class="card-summary">
-                {% for key, label in section_labels.items() %}
-                <span class="chip">{{ label }} <strong>{{ sections[key]|selectattr('returned_on', 'none')|list|length }}</strong></span>
-                {% endfor %}
                 {% set problems = sections.inventory|selectattr('returned_on', 'none')|rejectattr('awaiting')|rejectattr('in_stock')|list|length + sections.inventory|selectattr('over')|list|length %}
                 {% if problems %}<span class="chip chip--bad">Разминавания <strong>{{ problems }}</strong></span>{% endif %}
             </div>
         </div>
+        <div class="seg-toggle card-tabs" role="tablist" aria-label="Раздели на картона">
+            {% for key, label in section_labels.items() %}
+            <a class="btn{% if key == active %} is-active{% endif %}" role="tab" aria-selected="{{ 'true' if key == active else 'false' }}" href="{{ url_for('cards.show', card_id=card.id, razdel=key) }}">{{ label }} ({{ sections[key]|selectattr('returned_on', 'none')|list|length }})</a>
+            {% endfor %}
+        </div>
         {% if employee %}<p class="form-hint">Служител: <a class="row-link" href="{{ url_for('personnel.edit', employee_id=employee.id) }}">{{ card.title }}</a>. Не може да напусне, докато по картона има невърнато имущество.</p>{% endif %}
     </section>
 
-    {% for key, label in section_labels.items() %}
+    {% for key, label in section_labels.items() if key == active %}
     <section class="dash-card">
         <div class="dash-card__head"><h2>{{ label }} <span class="count-note">{% if key == 'inventory' %}свързан със склада по инвентарен номер{% else %}не се води в склада{% endif %}</span></h2></div>
         <div class="table-wrap">
@@ -56,7 +58,7 @@
         </div>
         <form class="inline-form" method="post" action="{{ url_for('cards.add_item', card_id=card.id) }}" data-ux-skip>
             <input type="hidden" name="section" value="{{ key }}">
-            <label class="field"><span>{{ 'Инв. номер' if key != 'fixed' else 'Номер' }}</span><input name="inv_number"></label>
+            <label class="field"><span>{{ 'Инв. номер' if key != 'fixed' else 'Номер' }}</span><input name="inv_number" autocomplete="off"{% if key == 'inventory' %} list="stock-numbers" data-lookup="{{ url_for('stock.lookup') }}" placeholder="9-…"{% endif %}></label>
             <label class="field" style="grid-column:span 2"><span>Наименование</span><input name="name" required></label>
             <label class="field"><span>Количество</span><input name="quantity" inputmode="decimal" value="1" required></label>
             {% if key == 'inventory' %}
@@ -64,8 +66,61 @@
             {% endif %}
             <div class="field"><span>Зачислено на</span>{{ date_input('issued_on', today) }}</div>
             <button class="btn primary" type="submit">Зачисли</button>
+            {% if key == 'inventory' %}<datalist id="stock-numbers"></datalist><div class="lookup-hint" aria-live="polite">Започнете да пишете инвентарен номер или наименование: наименованието се попълва от склада.</div>{% endif %}
         </form>
     </section>
     {% endfor %}
 </div>
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+    var inv = document.querySelector("[data-lookup]");
+    if (!inv) return;
+    var form = inv.form, name = form.elements.name, warehouse = form.elements.warehouse_id;
+    var list = document.getElementById("stock-numbers"), hint = form.querySelector(".lookup-hint");
+    var autoName = "", timer = null, found = {};
+
+    function fetchJson(params) {
+        params.sklad = warehouse ? warehouse.value : "";
+        return fetch(inv.dataset.lookup + "?" + new URLSearchParams(params)).then(function (r) { return r.json(); });
+    }
+    function show(item) {
+        if (!name.value || name.value === autoName) { name.value = autoName = item.name; }
+        hint.className = "lookup-hint lookup-hint--ok";
+        hint.textContent = "В склада: " + item.names.join("; ") + " · общо " + item.total + " " + item.unit + ", на склад " + item.on_shelf + " " + item.unit;
+    }
+    function check() {
+        var value = inv.value.trim();
+        if (!value) { hint.className = "lookup-hint"; hint.textContent = ""; return; }
+        if (found[value]) { show(found[value]); return; }
+        fetchJson({inv: value}).then(function (items) {
+            if (items.length) { show(items[0]); return; }
+            if (name.value === autoName) { name.value = autoName = ""; }
+            hint.className = "lookup-hint lookup-hint--bad";
+            hint.textContent = "Номер " + value + " го няма в склада. Може да се зачисли, но ще излезе в „Разминавания“.";
+        });
+    }
+    inv.addEventListener("input", function () {
+        clearTimeout(timer);
+        var value = inv.value.trim();
+        timer = setTimeout(function () {
+            if (value.length < 2) return;
+            fetchJson({q: value}).then(function (items) {
+                list.innerHTML = "";
+                items.forEach(function (item) {
+                    found[item.inv] = item;
+                    var option = document.createElement("option");
+                    option.value = item.inv;
+                    option.label = item.name + " (на склад " + item.on_shelf + ")";
+                    list.appendChild(option);
+                });
+                if (found[value]) show(found[value]);
+            });
+        }, 200);
+    });
+    inv.addEventListener("change", check);
+    if (warehouse) warehouse.addEventListener("change", function () { found = {}; check(); });
+})();
+</script>
 {% endblock %}

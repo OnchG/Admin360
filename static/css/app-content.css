@@ -130,3 +130,16 @@
 .meter--ok span{background:var(--s-ok)}
 .meter--warn span{background:var(--s-warn)}
 .meter--bad span{background:var(--s-bad)}
+/* Наличности: кой държи позицията */
+.link-btn{background:none;border:0;padding:0;font:inherit;color:var(--c-text);text-align:left;cursor:pointer;border-bottom:1px dashed var(--c-line-2)}
+.link-btn:hover,.link-btn[aria-expanded="true"]{color:var(--c-accent);border-bottom-color:var(--c-accent)}
+.chip--small{padding:0 7px;font-size:11px}
+.holders-row td{background:var(--c-surface-2)}
+.holders-title{font-weight:600;margin-bottom:6px}
+.holders-list{list-style:none;margin:0 0 6px;padding:0;display:grid;gap:4px}
+.holders-list li{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+/* Картон: раздели като бутони */
+.card-tabs{margin-top:12px}
+.lookup-hint{grid-column:1/-1;font-size:12.5px;color:var(--c-muted);min-height:18px}
+.lookup-hint--ok{color:var(--s-ok)}
+.lookup-hint--bad{color:var(--s-warn)}
