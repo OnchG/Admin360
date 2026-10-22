@@ -25,13 +25,6 @@
    },
    {
     "section": "inventory",
-    "inv": "9-180049",
-    "name": "Стол офис",
-    "date": "2016-10-01",
-    "qty": 1.0
-   },
-   {
-    "section": "inventory",
     "inv": "9-110282",
     "name": "Клавиатура Fujitsu",
     "date": "2019-07-31",
@@ -333,21 +326,24 @@
     "inv": "9-160109",
     "name": "CF карта 4GB на ЦК",
     "date": "2015-09-20",
-    "qty": 2.0
+    "qty": 2.0,
+    "warehouse": 2
    },
    {
     "section": "inventory",
     "inv": "9-050023",
     "name": "GSM GATEWAY на ЦК",
     "date": "2011-03-11",
-    "qty": 1.0
+    "qty": 1.0,
+    "warehouse": 2
    },
    {
     "section": "inventory",
     "inv": "9-050036",
     "name": "Диск твърд HDD 146GB ЦК",
     "date": "2018-12-31",
-    "qty": 2.0
+    "qty": 2.0,
+    "warehouse": 2
    },
    {
     "section": "inventory",
@@ -396,7 +392,8 @@
     "inv": "9-170041",
     "name": "Рутер безжичен на ЦК",
     "date": "2013-03-26",
-    "qty": 2.0
+    "qty": 2.0,
+    "warehouse": 2
    },
    {
     "section": "fixed",
@@ -496,13 +493,6 @@
    },
    {
     "section": "inventory",
-    "inv": "9-310015",
-    "name": "Батерия за тотална станция",
-    "date": "2015-06-01",
-    "qty": 1.0
-   },
-   {
-    "section": "inventory",
     "inv": "9-020003",
     "name": "Брадви",
     "date": "2017-11-30",
@@ -597,13 +587,6 @@
     "inv": "9-170016",
     "name": "Разклонители разни",
     "date": "2018-12-31",
-    "qty": 1.0
-   },
-   {
-    "section": "inventory",
-    "inv": "9-180049",
-    "name": "Стол въртящ",
-    "date": "2016-05-27",
     "qty": 1.0
    },
    {
@@ -810,20 +793,6 @@
    },
    {
     "section": "inventory",
-    "inv": "9-180049",
-    "name": "Стол офисен",
-    "date": "2015-06-30",
-    "qty": 1.0
-   },
-   {
-    "section": "inventory",
-    "inv": "9-180019",
-    "name": "Столове обикновени",
-    "date": "2007-07-06",
-    "qty": 1.0
-   },
-   {
-    "section": "inventory",
     "inv": "9-190016",
     "name": "Телефон",
     "date": "2007-07-06",
@@ -862,27 +831,6 @@
     "inv": "9-130013",
     "name": "Мегафон",
     "date": "2021-03-08",
-    "qty": 1.0
-   },
-   {
-    "section": "inventory",
-    "inv": "",
-    "name": "Компютър: ThinkCentre neo 50 s",
-    "date": "2025-05-29",
-    "qty": 1.0
-   },
-   {
-    "section": "inventory",
-    "inv": "",
-    "name": "Клавиатура: Lenovo SK 8823",
-    "date": "2025-05-29",
-    "qty": 1.0
-   },
-   {
-    "section": "inventory",
-    "inv": "",
-    "name": "Мишка: Lenovo Wireless L300",
-    "date": "2025-05-29",
     "qty": 1.0
    },
    {
@@ -1155,13 +1103,6 @@
     "inv": "9-180045",
     "name": "Скенер НР scanjet 3800",
     "date": "2020-11-01",
-    "qty": 1.0
-   },
-   {
-    "section": "inventory",
-    "inv": "9-180049",
-    "name": "Стол офис",
-    "date": "2020-07-31",
     "qty": 1.0
    },
    {
@@ -1513,13 +1454,6 @@
    },
    {
     "section": "inventory",
-    "inv": "9-110075",
-    "name": "К-кт за под кофа + парцал",
-    "date": "2014-11-26",
-    "qty": 1.0
-   },
-   {
-    "section": "inventory",
     "inv": "9-110027",
     "name": "Кофи пластмасови",
     "date": "2007-03-01",
@@ -1664,13 +1598,6 @@
     "name": "Поставка за течен сапун",
     "date": "2014-11-26",
     "qty": 3.0
-   },
-   {
-    "section": "inventory",
-    "inv": "9-180049",
-    "name": "Стол офис",
-    "date": "2007-03-01",
-    "qty": 2.0
    },
    {
     "section": "inventory",
@@ -1911,23 +1838,9 @@
    },
    {
     "section": "inventory",
-    "inv": "9-130107",
-    "name": "Монитор HP",
-    "date": "2019-06-30",
-    "qty": 1.0
-   },
-   {
-    "section": "inventory",
     "inv": "9-170046",
     "name": "Разклонители 6 гнезда",
     "date": "2016-05-31",
-    "qty": 1.0
-   },
-   {
-    "section": "inventory",
-    "inv": "9-180049",
-    "name": "Стол офис въртящ",
-    "date": "2015-06-30",
     "qty": 1.0
    },
    {
