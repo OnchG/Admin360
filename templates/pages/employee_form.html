@@ -1,10 +1,10 @@
 {% extends "layouts/app_shell.html" %}
 {% set is_new = not employee.id %}
 {% set title = 'Нов служител' if is_new else employee.full_name %}
-{% set sidebar_active = 'sluzhiteli' %}
+{% set sidebar_active = 'admin' %}
 {% set header_title = title %}
 {% set header_subtitle = 'Персонал' %}
-{% set header_breadcrumbs = [{'label': 'Начало', 'url': url_for('dashboard')}, {'label': 'Персонал'}, {'label': 'Служители', 'url': url_for('personnel.employees')}, {'label': title}] %}
+{% set header_breadcrumbs = [{'label': 'Начало', 'url': url_for('dashboard')}, {'label': 'Админ панел', 'url': url_for('auth.admin_panel')}, {'label': 'Служители', 'url': url_for('personnel.manage')}, {'label': title}] %}
 {% from "components/date_input.html" import date_input %}
 {% block content %}
 <div class="page page--narrow">
@@ -38,7 +38,7 @@
         <p class="form-hint">Имената се записват с главна първа буква, длъжността с главна първа буква (съкращенията като ХЕС и ПП остават с главни).</p>
         <div class="form-actions">
             {% if not is_new and not employee.left_on %}<a class="btn danger form-actions__left" href="{{ url_for('personnel.remove', employee_id=employee.id) }}">Премахни</a>{% endif %}
-            <a class="btn" href="{{ url_for('personnel.employees') }}">Отказ</a>
+            <a class="btn" href="{{ url_for('personnel.show', employee_id=employee.id) if employee.id else url_for('personnel.manage') }}">Отказ</a>
             <button class="btn primary" type="submit">Запази</button>
         </div>
     </form>

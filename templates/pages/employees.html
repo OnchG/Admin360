@@ -1,8 +1,13 @@
 {% extends "layouts/app_shell.html" %}
-{% set sidebar_active = 'sluzhiteli' %}
+{% set list_endpoint = 'personnel.manage' if manage else 'personnel.employees' %}
+{% set sidebar_active = 'admin' if manage else 'sluzhiteli' %}
 {% set header_title = 'Служители' %}
-{% set header_subtitle = 'Личен състав' %}
+{% set header_subtitle = 'Админ панел · редакция' if manage else 'Личен състав' %}
+{% if manage %}
+{% set header_breadcrumbs = [{'label': 'Начало', 'url': url_for('dashboard')}, {'label': 'Админ панел', 'url': url_for('auth.admin_panel')}, {'label': 'Служители'}] %}
+{% else %}
 {% set header_breadcrumbs = [{'label': 'Начало', 'url': url_for('dashboard')}, {'label': 'Персонал'}, {'label': 'Служители'}] %}
+{% endif %}
 {% block content %}
 <div class="page">
     <section class="dash-card">
@@ -11,15 +16,16 @@
             <div class="head-actions">
                 {% set view_arg = 'karti' if view == 'karti' else None %}
                 <div class="seg-toggle" role="group" aria-label="Изглед">
-                    <a class="btn{% if view != 'karti' %} is-active{% endif %}" href="{{ url_for('personnel.employees', sort=sort if sort == 'az' else None) }}">Таблица</a>
-                    <a class="btn{% if view == 'karti' %} is-active{% endif %}" href="{{ url_for('personnel.employees', sort=sort if sort == 'az' else None, izgled='karti') }}">Карти</a>
+                    <a class="btn{% if view != 'karti' %} is-active{% endif %}" href="{{ url_for(list_endpoint, sort=sort if sort == 'az' else None) }}">Таблица</a>
+                    <a class="btn{% if view == 'karti' %} is-active{% endif %}" href="{{ url_for(list_endpoint, sort=sort if sort == 'az' else None, izgled='karti') }}">Карти</a>
                 </div>
                 <div class="seg-toggle" role="group" aria-label="Подредба">
-                    <a class="btn{% if sort == 'rank' %} is-active{% endif %}" href="{{ url_for('personnel.employees', izgled=view_arg) }}">По длъжност</a>
-                    <a class="btn{% if sort == 'az' %} is-active{% endif %}" href="{{ url_for('personnel.employees', sort='az', izgled=view_arg) }}">По азбучен ред</a>
+                    <a class="btn{% if sort == 'rank' %} is-active{% endif %}" href="{{ url_for(list_endpoint, izgled=view_arg) }}">По длъжност</a>
+                    <a class="btn{% if sort == 'az' %} is-active{% endif %}" href="{{ url_for(list_endpoint, sort='az', izgled=view_arg) }}">По азбучен ред</a>
                 </div>
                 <a class="btn" href="{{ url_for('personnel.former') }}">Бивши служители ({{ former_count }})</a>
-                <a class="btn primary" href="{{ url_for('personnel.create') }}">Нов служител</a>
+                {% if manage %}<a class="btn primary" href="{{ url_for('personnel.create') }}">Нов служител</a>
+                {% elif current_user.is_admin %}<a class="btn" href="{{ url_for('personnel.manage', izgled=view_arg) }}">Редакция</a>{% endif %}
             </div>
         </div>
         {% if view == 'karti' %}
@@ -31,15 +37,16 @@
             {% endif %}
             {% set card = cards.get(row.id) %}
             <article class="person-card">
-                <a class="person-card__photo" href="{{ url_for('personnel.edit', employee_id=row.id) }}" aria-label="{{ row.full_name }}">
+                <a class="person-card__photo" href="{{ url_for('personnel.show', employee_id=row.id) }}" aria-label="{{ row.full_name }}">
                     {% if row.photo %}<img src="{{ url_for('personnel.photo', employee_id=row.id) }}" alt="" loading="lazy">{% else %}<span>{{ row.initials }}</span>{% endif %}
                 </a>
                 <div class="person-card__body">
-                    <a class="person-card__name" href="{{ url_for('personnel.edit', employee_id=row.id) }}">{{ row.full_name }}</a>
+                    <a class="person-card__name" href="{{ url_for('personnel.show', employee_id=row.id) }}">{{ row.full_name }}</a>
                     <div class="person-card__position">{{ row.position }}</div>
                     <div class="person-card__meta">
                         {% if row.hired_on %}<span>от {{ row.hired_on|bgdate }}</span>{% endif %}
                         {% if card %}<a class="chip chip--small" href="{{ url_for('cards.show', card_id=card.id) }}">Картон · {{ card.n }}</a>{% endif %}
+                        {% if manage %}<a class="chip chip--small" href="{{ url_for('personnel.edit', employee_id=row.id) }}">Редактирай</a>{% endif %}
                     </div>
                 </div>
             </article>
@@ -58,12 +65,16 @@
                     {% endif %}
                     <tr>
                         <td class="num mono">{{ loop.index }}</td>
-                        <td><a class="row-link person-link" href="{{ url_for('personnel.edit', employee_id=row.id) }}"><span class="avatar avatar--sm">{% if row.photo %}<img src="{{ url_for('personnel.photo', employee_id=row.id) }}" alt="" loading="lazy">{% else %}<span>{{ row.initials }}</span>{% endif %}</span>{{ row.full_name }}</a></td>
+                        <td><a class="row-link person-link" href="{{ url_for('personnel.show', employee_id=row.id) }}"><span class="avatar avatar--sm">{% if row.photo %}<img src="{{ url_for('personnel.photo', employee_id=row.id) }}" alt="" loading="lazy">{% else %}<span>{{ row.initials }}</span>{% endif %}</span>{{ row.full_name }}</a></td>
                         <td>{{ row.position }}</td>
                         <td class="mono">{{ row.hired_on|bgdate }}</td>
                         <td class="row-actions">
+                            {% if manage %}
                             <a class="btn" href="{{ url_for('personnel.edit', employee_id=row.id) }}">Редактирай</a>
                             <a class="btn danger" href="{{ url_for('personnel.remove', employee_id=row.id) }}">Премахни</a>
+                            {% else %}
+                            <a class="btn" href="{{ url_for('personnel.show', employee_id=row.id) }}">Карта</a>
+                            {% endif %}
                         </td>
                     </tr>
                 {% else %}

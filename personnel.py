@@ -271,7 +271,33 @@ def employees():
     cards = {r["employee_id"]: r for r in get_db().execute(
         "SELECT c.employee_id, c.id, SUM(CASE WHEN ci.returned_on IS NULL AND ci.id IS NOT NULL THEN 1 ELSE 0 END) AS n"
         " FROM cards c LEFT JOIN card_items ci ON ci.card_id = c.id WHERE c.kind = 'personal' GROUP BY c.id")}
-    return render_template("pages/employees.html", rows=rows, sort=sort, view=view, former_count=former, cards=cards)
+    return render_template("pages/employees.html", rows=rows, sort=sort, view=view, former_count=former, cards=cards,
+                           manage=request.endpoint == "personnel.manage")
+
+
+@bp.route("/upravlenie")
+def manage():
+    """Списъкът служители с бутоните за редакция (админ панел)."""
+    return employees()
+
+
+@bp.route("/sluzhiteli/<int:employee_id>")
+def show(employee_id):
+    """Карта на служителя: снимка, данни, имущество по картон, потребителски профил и история."""
+    db = get_db()
+    employee = _view(_get(employee_id))
+    today = date.today()
+    if employee["hired_on"]:
+        end = employee["left_on"] or today
+        months = (end.year - employee["hired_on"].year) * 12 + end.month - employee["hired_on"].month - (end.day < employee["hired_on"].day)
+        employee["service"] = (months // 12, months % 12)
+    card = db.execute("SELECT * FROM cards WHERE kind = 'personal' AND employee_id = ?", (employee_id,)).fetchone()
+    items = db.execute("SELECT * FROM card_items WHERE card_id = ? AND returned_on IS NULL ORDER BY section, inv_number",
+                       (card["id"],)).fetchall() if card else []
+    account = db.execute("SELECT * FROM users WHERE employee_id = ?", (employee_id,)).fetchone()
+    mol_count = db.execute("SELECT COUNT(*) FROM stock_items WHERE mol_employee_id = ?", (employee_id,)).fetchone()[0]
+    return render_template("pages/employee_show.html", employee=employee, card=card, items=items, account=account,
+                           mol_count=mol_count, events=_events(employee_id)[:10])
 
 
 @bp.route("/sluzhiteli/<int:employee_id>/snimka")
@@ -299,14 +325,14 @@ def create():
             _apply_photo(db, employee_id)
             db.commit()
             flash(f"Служителят {data['first_name']} {data['last_name']} е добавен.", "ok")
-            return redirect(url_for("personnel.employees"))
+            return redirect(url_for("personnel.manage"))
         for message in errors:
             flash(message, "bad")
         return render_template("pages/employee_form.html", employee=data, positions=_positions(), events=[])
     return render_template("pages/employee_form.html", employee={}, positions=_positions(), events=[])
 
 
-@bp.route("/sluzhiteli/<int:employee_id>", methods=["GET", "POST"])
+@bp.route("/sluzhiteli/<int:employee_id>/redakcia", methods=["GET", "POST"])
 def edit(employee_id):
     row = _get(employee_id)
     if request.method == "POST":
@@ -328,7 +354,7 @@ def edit(employee_id):
                 _log(db, employee_id, "edited", "; ".join(changes))
                 db.commit()
                 flash("Промените са записани.", "ok")
-            return redirect(url_for("personnel.employees"))
+            return redirect(url_for("personnel.show", employee_id=employee_id))
         for message in errors:
             flash(message, "bad")
         employee = {**_view(row), **data}
@@ -355,7 +381,7 @@ def remove(employee_id):
         _log(db, employee_id, "left", reason)
         db.commit()
         flash(f"{full_name(row)} е преместен в „Бивши служители“.", "ok")
-        return redirect(url_for("personnel.employees"))
+        return redirect(url_for("personnel.manage"))
     return render_template("pages/employee_remove.html", employee=_view(row), card_items=items)
 
 
@@ -368,7 +394,7 @@ def restore(employee_id):
         _log(db, employee_id, "restored", f"Напуснал на {date.fromisoformat(row['left_on']).strftime('%d.%m.%Y')}")
         db.commit()
         flash(f"{full_name(row)} е върнат в личния състав.", "ok")
-    return redirect(url_for("personnel.employees"))
+    return redirect(url_for("personnel.manage"))
 
 
 FIELD_LABELS = {"first_name": "Име", "middle_name": "Презиме", "last_name": "Фамилия", "position": "Длъжност",

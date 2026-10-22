@@ -1,0 +1,31 @@
+{% extends "layouts/app_shell.html" %}
+{% set is_new = not user.id %}
+{% set title = 'Нов потребител' if is_new else user.username %}
+{% set sidebar_active = 'admin' %}
+{% set header_title = title %}
+{% set header_subtitle = 'Потребители' %}
+{% set header_breadcrumbs = [{'label': 'Начало', 'url': url_for('dashboard')}, {'label': 'Админ панел', 'url': url_for('auth.admin_panel')}, {'label': 'Потребители', 'url': url_for('auth.users')}, {'label': title}] %}
+{% block content %}
+<div class="page page--narrow">
+    <form class="dash-card form-card" method="post">
+        <div class="dash-card__head"><h2>{{ title }}</h2></div>
+        <div class="form-grid form-grid--3">
+            <label class="field"><span>Потребителско име</span><input name="username" value="{{ user.username }}" autocomplete="off" required{% if is_new %} autofocus{% endif %}></label>
+            <label class="field"><span>Роля</span>
+                <select name="role">{% for key, label in roles.items() %}<option value="{{ key }}"{% if key == user.role %} selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+            </label>
+            <label class="field"><span>Служител</span>
+                <select name="employee_id"><option value="">— няма —</option>{% for e in employees %}<option value="{{ e.id }}"{% if e.id == user.employee_id %} selected{% endif %}>{{ e.name }}</option>{% endfor %}</select>
+            </label>
+            <label class="field"><span>{{ 'Парола' if is_new else 'Нова парола' }}</span><input type="password" name="password" autocomplete="new-password"{% if is_new %} required{% endif %}></label>
+            <label class="field"><span>Повторете паролата</span><input type="password" name="password2" autocomplete="new-password"{% if is_new %} required{% endif %}></label>
+            <label class="field--check"><input type="checkbox" name="active" value="1"{% if user.active %} checked{% endif %}> Активен (може да влиза)</label>
+        </div>
+        <p class="form-hint">{% if is_new %}Поне 8 знака. Предайте паролата на човека, той може да я смени от „Моят профил“.{% else %}Оставете паролата празна, ако не я сменяте.{% endif %}</p>
+        <div class="form-actions">
+            <a class="btn" href="{{ url_for('auth.users') }}">Отказ</a>
+            <button class="btn primary" type="submit">Запази</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

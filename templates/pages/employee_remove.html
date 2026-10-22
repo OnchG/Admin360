@@ -1,8 +1,8 @@
 {% extends "layouts/app_shell.html" %}
-{% set sidebar_active = 'sluzhiteli' %}
+{% set sidebar_active = 'admin' %}
 {% set header_title = 'Премахване на служител' %}
 {% set header_subtitle = employee.full_name %}
-{% set header_breadcrumbs = [{'label': 'Начало', 'url': url_for('dashboard')}, {'label': 'Персонал'}, {'label': 'Служители', 'url': url_for('personnel.employees')}, {'label': 'Премахване'}] %}
+{% set header_breadcrumbs = [{'label': 'Начало', 'url': url_for('dashboard')}, {'label': 'Админ панел', 'url': url_for('auth.admin_panel')}, {'label': 'Служители', 'url': url_for('personnel.manage')}, {'label': 'Премахване'}] %}
 {% from "components/date_input.html" import date_input %}
 {% block content %}
 <div class="page page--narrow">
@@ -17,7 +17,7 @@
             <label class="field field--wide"><span>Причина (по желание)</span><input name="reason" placeholder="Например: пенсиониране, напускане по собствено желание"></label>
         </div>
         <div class="form-actions">
-            <a class="btn" href="{{ url_for('personnel.employees') }}">Отказ</a>
+            <a class="btn" href="{{ url_for('personnel.show', employee_id=employee.id) if employee.id else url_for('personnel.manage') }}">Отказ</a>
             <button class="btn danger" type="submit"{% if card_items %} disabled{% endif %}>Премахни от състава</button>
         </div>
     </form>

@@ -1,0 +1,74 @@
+{% extends "layouts/app_shell.html" %}
+{% set sidebar_active = 'sluzhiteli' %}
+{% set header_title = employee.full_name %}
+{% set header_subtitle = 'Карта на служителя' %}
+{% set header_breadcrumbs = [{'label': 'Начало', 'url': url_for('dashboard')}, {'label': 'Персонал'}, {'label': 'Служители', 'url': url_for('personnel.employees')}, {'label': employee.full_name}] %}
+{% set sections = {'inventory': 'Инвентар', 'ppe': 'Лични предпазни средства', 'fixed': 'Дълготрайни активи'} %}
+{% block content %}
+<div class="page">
+    <section class="dash-card person-hero">
+        <div class="person-hero__photo">
+            {% if employee.photo %}<img src="{{ url_for('personnel.photo', employee_id=employee.id) }}" alt="{{ employee.full_name }}">{% else %}<span>{{ employee.initials }}</span>{% endif %}
+        </div>
+        <div class="person-hero__main">
+            <h2 class="person-hero__name">{{ employee.full_name }}</h2>
+            <div class="person-hero__position">{{ employee.position }}</div>
+            <div class="person-hero__tags">
+                <span class="chip">{{ employee.group }}</span>
+                {% if employee.left_on %}<span class="status-dot status-dot--warn">Напуснал на {{ employee.left_on|bgdate }}</span>
+                {% else %}<span class="status-dot status-dot--ok">В личния състав</span>{% endif %}
+            </div>
+            <dl class="person-facts">
+                <div><dt>Постъпил</dt><dd>{{ employee.hired_on|bgdate or '—' }}</dd></div>
+                <div><dt>Стаж в района</dt><dd>{% if employee.service %}{{ employee.service[0] }} г. {{ employee.service[1] }} мес.{% else %}—{% endif %}</dd></div>
+                <div><dt>Имущество по картон</dt><dd>{{ items|length }} позиции</dd></div>
+                {% if mol_count %}<div><dt>МОЛ на</dt><dd><a class="row-link" href="{{ url_for('stock.items') }}">{{ mol_count }} позиции в склада</a></dd></div>{% endif %}
+                {% if account %}<div><dt>Достъп до системата</dt><dd>{{ account.username }} · {{ roles[account.role] }}{% if not account.active %} (спрян){% endif %}</dd></div>{% endif %}
+            </dl>
+            {% if employee.note %}<p class="person-hero__note">{{ employee.note }}</p>{% endif %}
+        </div>
+        <div class="person-hero__actions">
+            {% if card %}<a class="btn" href="{{ url_for('cards.show', card_id=card.id) }}">Личен картон</a>{% endif %}
+            {% if current_user.is_admin %}<a class="btn primary" href="{{ url_for('personnel.edit', employee_id=employee.id) }}">Редактирай</a>{% endif %}
+        </div>
+    </section>
+
+    <section class="dash-card">
+        <div class="dash-card__head">
+            <h2>Зачислено имущество <span class="count-note">невърнатото по личния картон</span></h2>
+            {% if card %}<a class="btn" href="{{ url_for('cards.show', card_id=card.id) }}">Отвори картона</a>{% endif %}
+        </div>
+        {% if items %}
+        <div class="table-wrap">
+            <table class="data-table">
+                <thead><tr><th>Раздел</th><th>Номер</th><th>Наименование</th><th class="num">Количество</th><th>Зачислено на</th></tr></thead>
+                <tbody>
+                {% for item in items %}
+                    <tr><td class="muted nowrap">{{ sections[item.section] }}</td><td class="mono">{{ item.inv_number or '—' }}</td><td>{{ item.name }}</td>
+                        <td class="num mono">{{ '%g'|format(item.quantity)|replace('.', ',') }}</td><td class="mono">{{ item.issued_on|bgdate }}</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="muted">{% if card %}Няма невърнато имущество по картона.{% else %}Служителят няма личен картон.{% endif %}</p>
+        {% endif %}
+    </section>
+
+    {% if events %}
+    <section class="dash-card">
+        <div class="dash-card__head"><h2>История <span class="count-note">последните промени</span></h2></div>
+        <div class="table-wrap">
+            <table class="data-table">
+                <thead><tr><th>Кога</th><th>Събитие</th><th>Подробности</th></tr></thead>
+                <tbody>
+                {% for e in events %}
+                    <tr><td class="mono nowrap">{{ e.at.strftime('%d.%m.%Y %H:%M') }}</td><td>{{ e.label }}</td><td>{{ e.details }}</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+    {% endif %}
+</div>
+{% endblock %}

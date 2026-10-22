@@ -1,0 +1,33 @@
+{% extends "layouts/app_shell.html" %}
+{% set sidebar_active = 'admin' %}
+{% set header_title = 'Потребители' %}
+{% set header_subtitle = 'Админ панел' %}
+{% set header_breadcrumbs = [{'label': 'Начало', 'url': url_for('dashboard')}, {'label': 'Админ панел', 'url': url_for('auth.admin_panel')}, {'label': 'Потребители'}] %}
+{% block content %}
+<div class="page">
+    <section class="dash-card">
+        <div class="dash-card__head">
+            <h2>Потребители <span class="count-note">{{ rows|length }}</span></h2>
+            <a class="btn primary" href="{{ url_for('auth.create_user') }}">Нов потребител</a>
+        </div>
+        <div class="table-wrap">
+            <table class="data-table">
+                <thead><tr><th>Потребителско име</th><th>Служител</th><th>Роля</th><th>Последен вход</th><th>Състояние</th><th></th></tr></thead>
+                <tbody>
+                {% for row in rows %}
+                    <tr class="{% if not row.active %}row-returned{% endif %}">
+                        <td class="mono">{{ row.username }}</td>
+                        <td>{% if row.employee_id %}<a class="row-link" href="{{ url_for('personnel.show', employee_id=row.employee_id) }}">{{ row.first_name }} {{ row.last_name }}</a>{% else %}<span class="muted">—</span>{% endif %}</td>
+                        <td>{{ roles[row.role] }}</td>
+                        <td class="mono">{{ row.last_login[:16]|replace('T', ' ') if row.last_login else '—' }}</td>
+                        <td>{% if row.active %}<span class="status-dot status-dot--ok">активен</span>{% else %}<span class="status-dot">спрян</span>{% endif %}</td>
+                        <td class="row-actions"><a class="btn" href="{{ url_for('auth.edit_user', user_id=row.id) }}">Редактирай</a></td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <p class="form-hint">„Администратор“ редактира служителите, потребителите и настройките. „Потребител“ работи с всички останали модули.</p>
+    </section>
+</div>
+{% endblock %}

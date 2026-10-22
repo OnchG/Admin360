@@ -1,0 +1,23 @@
+{% extends "layouts/app_shell.html" %}
+{% set sidebar_active = '' %}
+{% set header_title = 'Моят профил' %}
+{% set header_breadcrumbs = [{'label': 'Начало', 'url': url_for('dashboard')}, {'label': 'Моят профил'}] %}
+{% block content %}
+<div class="page page--narrow">
+    <section class="dash-card">
+        <div class="dash-card__head"><h2>{{ current_user.name }} <span class="count-note">{{ user.username }} · {{ roles[user.role] }}</span></h2>
+            {% if employee %}<a class="btn" href="{{ url_for('personnel.show', employee_id=employee.id) }}">Карта на служителя</a>{% endif %}</div>
+        {% if user.last_login %}<p class="form-hint">Последен вход: {{ user.last_login[:16]|replace('T', ' ') }}</p>{% endif %}
+    </section>
+    <form class="dash-card form-card" method="post">
+        <div class="dash-card__head"><h2>Смяна на паролата</h2></div>
+        <div class="form-grid form-grid--3">
+            <label class="field"><span>Текуща парола</span><input type="password" name="current" autocomplete="current-password" required></label>
+            <label class="field"><span>Нова парола</span><input type="password" name="password" autocomplete="new-password" required></label>
+            <label class="field"><span>Повторете новата</span><input type="password" name="password2" autocomplete="new-password" required></label>
+        </div>
+        <p class="form-hint">Поне 8 знака.</p>
+        <div class="form-actions"><button class="btn primary" type="submit">Смени паролата</button></div>
+    </form>
+</div>
+{% endblock %}
