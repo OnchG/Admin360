@@ -16,15 +16,17 @@
                 <tbody>
                 {% for row in rows %}
                     <tr>
-                        <td><a class="row-link" href="{{ url_for('personnel.edit', employee_id=row.id) }}">{{ row.full_name }}</a></td>
+                        <td><a class="row-link" href="{{ url_for('personnel.show', employee_id=row.id) }}">{{ row.full_name }}</a></td>
                         <td>{{ row.position }}</td>
                         <td class="mono">{{ row.hired_on|bgdate }}</td>
                         <td class="mono">{{ row.left_on|bgdate }}</td>
                         <td>{{ row.leave_reason }}</td>
                         <td class="row-actions">
+                            {% if current_user.is_admin %}
                             <form method="post" action="{{ url_for('personnel.restore', employee_id=row.id) }}" data-ux-skip>
                                 <button class="btn" type="submit">Върни в състава</button>
                             </form>
+                            {% endif %}
                         </td>
                     </tr>
                 {% else %}

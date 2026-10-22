@@ -29,7 +29,7 @@
 
         <details class="system-profile">
             <summary class="system-profile__summary">
-                <img class="system-profile__avatar" src="{{ url_for('static', filename=current_user.photo) }}" alt="Профилна снимка">
+                <img class="system-profile__avatar" src="{{ current_user.photo_url }}" alt="Профилна снимка">
                 <span class="system-profile__meta">
                     <strong>{{ current_user.name }}</strong>
                     <small>{{ current_user.position }}</small>
@@ -39,8 +39,9 @@
                 </span>
             </summary>
             <div class="system-profile__menu">
-                <a href="{{ url_for('profile') }}">Моят профил</a>
-                <a href="{{ url_for('settings.page') }}">Настройки</a>
+                <a href="{{ url_for('auth.profile') }}">Моят профил</a>
+                {% if current_user.is_admin %}<a href="{{ url_for('auth.admin_panel') }}">Админ панел</a>{% endif %}
+                <form method="post" action="{{ url_for('auth.logout') }}" data-ux-skip><button type="submit">Изход</button></form>
             </div>
         </details>
     </div>

@@ -3,11 +3,14 @@
 
 Стартиране:  py app.py   →  http://127.0.0.1:5000
 """
-from datetime import date
+import os
+import secrets
+from datetime import date, timedelta
 
 from flask import Flask, abort, flash, redirect, render_template, request, url_for
 
 import config
+import auth
 import db
 import personnel
 import cards
@@ -16,8 +19,25 @@ import reserve
 import stock
 
 app = Flask(__name__)
-app.config["SECRET_KEY"] = "smeni-tozi-kluch"  # сменете с произволен низ преди реална употреба
+
+
+def _secret_key(app):
+    """Ключ за сесиите: от ADMIN360_SECRET_KEY или случаен, пазен в instance/secret_key."""
+    if os.environ.get("ADMIN360_SECRET_KEY"):
+        return os.environ["ADMIN360_SECRET_KEY"]
+    path = os.path.join(app.instance_path, "secret_key")
+    if not os.path.exists(path):
+        os.makedirs(app.instance_path, exist_ok=True)
+        with open(path, "w") as fh:
+            fh.write(secrets.token_hex(32))
+    with open(path) as fh:
+        return fh.read().strip()
+
+
+app.config["SECRET_KEY"] = _secret_key(app)
+app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=30)  # „Запомни ме“ при вход
 db.init_app(app)
+auth.init_app(app)
 app.register_blueprint(personnel.bp)
 app.register_blueprint(settings.bp)
 app.register_blueprint(stock.bp)
@@ -29,6 +49,7 @@ with app.app_context():
     stock.init_db()
     cards.init_db()
     reserve.init_db()
+    auth.init_db()
 
 # Страници, които още нямат съдържание: виж PLACEHOLDERS в config.py.
 PLACEHOLDERS = config.PLACEHOLDERS
@@ -70,7 +91,6 @@ def shell_context():
         "app_author": config.APP_AUTHOR,
         "app_year": date.today().year,
         "today": date.today().isoformat(),
-        "current_user": config.CURRENT_USER,
         "menu": config.MENU,
         "menu_url": menu_url,
         "status_labels": STATUS_LABELS,
@@ -108,9 +128,9 @@ def placeholder(slug):
     return render_template("pages/placeholder.html", title=PLACEHOLDERS[slug], active=slug)
 
 
-@app.route("/profil")
-def profile():
-    return render_template("pages/placeholder.html", title="Моят профил", active="")
+@app.errorhandler(403)
+def forbidden(_error):
+    return render_template("pages/placeholder.html", title="Нямате достъп", active="", forbidden=True), 403
 
 
 @app.errorhandler(404)

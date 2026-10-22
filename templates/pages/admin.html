@@ -1,0 +1,18 @@
+{% extends "layouts/app_shell.html" %}
+{% set sidebar_active = 'admin' %}
+{% set header_title = 'Админ панел' %}
+{% set header_subtitle = 'Само за администратор' %}
+{% set header_breadcrumbs = [{'label': 'Начало', 'url': url_for('dashboard')}, {'label': 'Админ панел'}] %}
+{% block content %}
+<div class="page">
+    <section class="dash-card">
+        <div class="dash-card__head"><h2>Управление</h2></div>
+        <div class="admin-tiles">
+            <a class="admin-tile" href="{{ url_for('personnel.manage') }}"><strong>Служители</strong><b>{{ counts.employees }}</b><span>Нов служител, редакция, снимки, премахване{% if counts.no_photo %} · {{ counts.no_photo }} без снимка{% endif %}</span></a>
+            <a class="admin-tile" href="{{ url_for('personnel.former') }}"><strong>Бивши служители</strong><b>{{ counts.former }}</b><span>Връщане в личния състав</span></a>
+            <a class="admin-tile" href="{{ url_for('auth.users') }}"><strong>Потребители</strong><b>{{ counts.users }}</b><span>Вход в системата, роли, пароли</span></a>
+            <a class="admin-tile" href="{{ url_for('settings.page') }}"><strong>Настройки</strong><b>⚙</b><span>Праг на стойността в склада</span></a>
+        </div>
+    </section>
+</div>
+{% endblock %}

@@ -8,7 +8,6 @@ APP_TAGLINE = "Деловодство · Счетоводство · Склад"
 APP_AUTHOR = "Онник Гюлян"       # втори ред във footer-а; празно = скрито
 
 # Текущ потребител (докато няма вход с парола).
-CURRENT_USER = {"name": "Потребител", "position": "Администратор", "photo": "img/default_user.svg"}
 
 # Ляво меню. Всеки пункт: key (уникален), label, icon (виж templates/components/icons.html)
 # и endpoint (име на Flask функцията) или url. Група = {"label", "icon", "items": [...]}.
@@ -39,6 +38,8 @@ MENU = [
         _page("inventarizacia", "Инвентаризация", "check"),
     ]},
     {"key": "spravki", "label": "Справки", "icon": "chart", "endpoint": "placeholder", "args": {"slug": "spravki"}},
+    # само за администратор (виж auth.py)
+    {"key": "admin", "label": "Админ панел", "icon": "settings", "endpoint": "auth.admin_panel", "admin": True},
 ]
 
 # Заглавия на страниците без съдържание (slug -> заглавие), взети от менюто.

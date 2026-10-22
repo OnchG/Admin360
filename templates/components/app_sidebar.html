@@ -9,7 +9,7 @@
     </a>
     <div class="brand-divider"></div>
     <nav class="sidebar-menu" aria-label="Модули">
-        {% for entry in menu %}
+        {% for entry in menu if not entry.admin or current_user.is_admin %}
             {% if 'items' in entry %}
             <div class="sidebar-group">
                 <div class="sidebar-group-head"><span class="ico">{{ icon(entry.icon) }}</span><span>{{ entry.label }}</span></div>

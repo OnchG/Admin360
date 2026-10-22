@@ -1,0 +1,41 @@
+{% from "components/brand_logo.html" import brand_logo with context %}
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ 'Първоначална настройка' if setup else 'Вход' }} · {{ app_name }}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sofia+Sans:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/app-controls.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/app-sidebar.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/app-theme.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/app-shell.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/app-content.css') }}">
+</head>
+<body class="app-body login-body">
+<main class="app-main login-main"><form class="dash-card form-card login-card" method="post">
+    <div class="sidebar-brand clean-brand">{{ brand_logo() }}</div>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}<div class="app-flash app-flash--{{ category }}" role="status">{{ message }}</div>{% endfor %}
+    {% endwith %}
+    {% if setup %}
+    <h2>Първоначална настройка</h2>
+    <p class="form-hint">Създайте администраторския профил.{% if owner_name %} Той се свързва със служителя <strong>{{ owner_name }}</strong>.{% endif %} Само администраторът редактира служителите, потребителите и настройките.</p>
+    {% else %}
+    <h2>Вход в системата</h2>
+    {% endif %}
+    <label class="field"><span>Потребителско име</span><input name="username" value="{{ username }}" autocomplete="username" required{% if not username or setup %} autofocus{% endif %}></label>
+    <label class="field"><span>Парола</span><input type="password" name="password" autocomplete="{{ 'new-password' if setup else 'current-password' }}" required{% if username and not setup %} autofocus{% endif %}></label>
+    {% if setup %}
+    <label class="field"><span>Повторете паролата</span><input type="password" name="password2" autocomplete="new-password" required></label>
+    <p class="form-hint">Поне 8 знака.</p>
+    <button class="btn primary" type="submit">Създай администратор</button>
+    {% else %}
+    <label class="field--check"><input type="checkbox" name="remember" value="1"> Запомни ме на този компютър (30 дни)</label>
+    <button class="btn primary" type="submit">Вход</button>
+    {% endif %}
+</form></main>
+</body>
+</html>

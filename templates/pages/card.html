@@ -19,7 +19,7 @@
             <a class="btn{% if key == active %} is-active{% endif %}" role="tab" aria-selected="{{ 'true' if key == active else 'false' }}" href="{{ url_for('cards.show', card_id=card.id, razdel=key) }}">{{ label }} ({{ sections[key]|selectattr('returned_on', 'none')|list|length }})</a>
             {% endfor %}
         </div>
-        {% if employee %}<p class="form-hint">Служител: <a class="row-link" href="{{ url_for('personnel.edit', employee_id=employee.id) }}">{{ card.title }}</a>. Не може да напусне, докато по картона има невърнато имущество.</p>{% endif %}
+        {% if employee %}<p class="form-hint">Служител: <a class="row-link" href="{{ url_for('personnel.show', employee_id=employee.id) }}">{{ card.title }}</a>. Не може да напусне, докато по картона има невърнато имущество.</p>{% endif %}
     </section>
 
     {% for key, label in section_labels.items() if key == active %}
