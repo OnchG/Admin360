@@ -8,10 +8,21 @@
 {% from "components/date_input.html" import date_input %}
 {% block content %}
 <div class="page page--narrow">
-    <form class="dash-card form-card" method="post">
+    <form class="dash-card form-card" method="post" enctype="multipart/form-data">
         <div class="dash-card__head">
             <h2>{{ 'Нов служител' if is_new else 'Данни на служителя' }}</h2>
             {% if employee.left_on %}<span class="status-dot status-dot--warn">Напуснал на {{ employee.left_on|bgdate }}</span>{% endif %}
+        </div>
+        <div class="photo-field">
+            <div class="avatar avatar--lg" data-photo-preview>
+                {% if employee.photo %}<img src="{{ url_for('personnel.photo', employee_id=employee.id) }}" alt="">{% else %}<span>{{ employee.initials or '?' }}</span>{% endif %}
+            </div>
+            <div class="photo-field__controls">
+                <span class="photo-field__title">{{ 'Смяна на снимката' if employee.photo else 'Снимка' }}</span>
+                <input id="photo-input" type="file" name="photo" accept="image/*">
+                {% if employee.photo %}<label class="field--check"><input type="checkbox" name="remove_photo" value="1"> Премахни снимката</label>{% endif %}
+                <span class="form-hint">JPG, PNG или снимка от телефона. Смалява се автоматично.</span>
+            </div>
         </div>
         <div class="form-grid form-grid--3">
             <label class="field"><span>Име</span><input name="first_name" value="{{ employee.first_name or '' }}" required autofocus></label>
@@ -48,4 +59,15 @@
     </section>
     {% endif %}
 </div>
+{% endblock %}
+{% block scripts %}
+<script>
+document.getElementById("photo-input").addEventListener("change", function () {
+    var file = this.files[0], box = document.querySelector("[data-photo-preview]");
+    if (!file) return;
+    var img = document.createElement("img");
+    img.src = URL.createObjectURL(file);
+    box.replaceChildren(img);
+});
+</script>
 {% endblock %}
