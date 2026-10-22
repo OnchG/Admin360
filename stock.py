@@ -245,8 +245,12 @@ def _filters():
 def items():
     warehouse_id, value_class, query = _filters()
     sql = ("SELECT s.*, e.first_name, e.middle_name, e.last_name FROM stock_items s"
-           " LEFT JOIN employees e ON e.id = s.mol_employee_id WHERE s.warehouse_id = ? AND s.value_class = ?")
-    rows = get_db().execute(sql + " ORDER BY s.inv_number", (warehouse_id, value_class)).fetchall()
+           " LEFT JOIN employees e ON e.id = s.mol_employee_id WHERE s.warehouse_id = ?")
+    if query:
+        # търсенето минава и през двата списъка (под и над прага)
+        rows = get_db().execute(sql + " ORDER BY s.inv_number, s.value_class DESC", (warehouse_id,)).fetchall()
+    else:
+        rows = get_db().execute(sql + " AND s.value_class = ? ORDER BY s.inv_number", (warehouse_id, value_class)).fetchall()
     if query:
         needle = query.casefold()
         rows = [r for r in rows if needle in r["name"].casefold() or needle in r["inv_number"].casefold()]
