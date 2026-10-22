@@ -67,7 +67,10 @@ STATUS_LABELS = {"ok": "Налично", "warn": "Под минимума", "bad
 def bgdate(value):
     """Дата във формат дд.мм.гггг."""
     if isinstance(value, str) and value:
-        value = date.fromisoformat(value[:10])
+        try:
+            value = date.fromisoformat(value[:10])
+        except ValueError:
+            return value  # сгрешена дата от импорта: показва се както е записана, вместо страницата да спре
     return value.strftime("%d.%m.%Y") if value else ""
 
 
