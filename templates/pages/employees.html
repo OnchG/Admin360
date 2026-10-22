@@ -15,13 +15,18 @@
             <h2>Личен състав <span class="count-note">{{ rows|length }} служители</span></h2>
             <div class="head-actions">
                 {% set view_arg = 'karti' if view == 'karti' else None %}
+                {% set site_arg = site or None %}
+                <div class="seg-toggle" role="group" aria-label="Място">
+                    <a class="btn{% if not site %} is-active{% endif %}" href="{{ url_for(list_endpoint, sort=sort if sort == 'az' else None, izgled=view_arg) }}">Всички</a>
+                    {% for s in sites %}<a class="btn{% if s == site %} is-active{% endif %}" href="{{ url_for(list_endpoint, sort=sort if sort == 'az' else None, izgled=view_arg, myasto=s) }}">{{ s|replace('Яз. стена ', '') }} ({{ site_counts[s] }})</a>{% endfor %}
+                </div>
                 <div class="seg-toggle" role="group" aria-label="Изглед">
-                    <a class="btn{% if view != 'karti' %} is-active{% endif %}" href="{{ url_for(list_endpoint, sort=sort if sort == 'az' else None) }}">Таблица</a>
-                    <a class="btn{% if view == 'karti' %} is-active{% endif %}" href="{{ url_for(list_endpoint, sort=sort if sort == 'az' else None, izgled='karti') }}">Карти</a>
+                    <a class="btn{% if view != 'karti' %} is-active{% endif %}" href="{{ url_for(list_endpoint, sort=sort if sort == 'az' else None, myasto=site_arg) }}">Таблица</a>
+                    <a class="btn{% if view == 'karti' %} is-active{% endif %}" href="{{ url_for(list_endpoint, sort=sort if sort == 'az' else None, izgled='karti', myasto=site_arg) }}">Карти</a>
                 </div>
                 <div class="seg-toggle" role="group" aria-label="Подредба">
-                    <a class="btn{% if sort == 'rank' %} is-active{% endif %}" href="{{ url_for(list_endpoint, izgled=view_arg) }}">По длъжност</a>
-                    <a class="btn{% if sort == 'az' %} is-active{% endif %}" href="{{ url_for(list_endpoint, sort='az', izgled=view_arg) }}">По азбучен ред</a>
+                    <a class="btn{% if sort == 'rank' %} is-active{% endif %}" href="{{ url_for(list_endpoint, izgled=view_arg, myasto=site_arg) }}">По длъжност</a>
+                    <a class="btn{% if sort == 'az' %} is-active{% endif %}" href="{{ url_for(list_endpoint, sort='az', izgled=view_arg, myasto=site_arg) }}">По азбучен ред</a>
                 </div>
                 <a class="btn" href="{{ url_for('personnel.former') }}">Бивши служители ({{ former_count }})</a>
                 {% if manage %}<a class="btn primary" href="{{ url_for('personnel.create') }}">Нов служител</a>
@@ -43,6 +48,7 @@
                 <div class="person-card__body">
                     <a class="person-card__name" href="{{ url_for('personnel.show', employee_id=row.id) }}">{{ row.full_name }}</a>
                     <div class="person-card__position">{{ row.position }}</div>
+                    {% if row.site %}<div class="person-card__site">{{ row.site }}</div>{% endif %}
                     <div class="person-card__meta">
                         {% if row.hired_on %}<span>от {{ row.hired_on|bgdate }}</span>{% endif %}
                         {% if card %}<a class="chip chip--small" href="{{ url_for('cards.show', card_id=card.id) }}">Картон · {{ card.n }}</a>{% endif %}
@@ -57,16 +63,17 @@
         {% else %}
         <div class="table-wrap">
             <table class="data-table">
-                <thead><tr><th class="num">№</th><th>Име, презиме, фамилия</th><th>Длъжност</th><th>Постъпил</th><th></th></tr></thead>
+                <thead><tr><th class="num">№</th><th>Име, презиме, фамилия</th><th>Длъжност</th><th>Място</th><th>Постъпил</th><th></th></tr></thead>
                 <tbody>
                 {% for row in rows %}
                     {% if sort == 'rank' and (loop.first or row.group != loop.previtem.group) %}
-                        <tr class="group-row"><td colspan="5">{{ row.group }}</td></tr>
+                        <tr class="group-row"><td colspan="6">{{ row.group }}</td></tr>
                     {% endif %}
                     <tr>
                         <td class="num mono">{{ loop.index }}</td>
                         <td><a class="row-link person-link" href="{{ url_for('personnel.show', employee_id=row.id) }}"><span class="avatar avatar--sm">{% if row.photo %}<img src="{{ url_for('personnel.photo', employee_id=row.id) }}" alt="" loading="lazy">{% else %}<span>{{ row.initials }}</span>{% endif %}</span>{{ row.full_name }}</a></td>
                         <td>{{ row.position }}</td>
+                        <td class="muted">{{ row.site|replace('Яз. стена ', '') }}</td>
                         <td class="mono">{{ row.hired_on|bgdate }}</td>
                         <td class="row-actions">
                             {% if manage %}
@@ -78,7 +85,7 @@
                         </td>
                     </tr>
                 {% else %}
-                    <tr><td colspan="5">Няма служители.</td></tr>
+                    <tr><td colspan="6">Няма служители.</td></tr>
                 {% endfor %}
                 </tbody>
             </table>

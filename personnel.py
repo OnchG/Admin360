@@ -7,10 +7,11 @@
 card_items_for() ще връща зачисленото му имущество и за всяка позиция ще се избира
 „прехвърли на друг служител“ или „бракувай“; служителят напуска едва когато нищо не остане по картона му.
 """
+import calendar
 import os
 import re
 import secrets
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 from flask import Blueprint, abort, current_app, flash, redirect, render_template, request, send_from_directory, url_for
 
@@ -39,6 +40,13 @@ CREATE TABLE IF NOT EXISTS employee_events (
     happened_at TEXT NOT NULL,
     details TEXT NOT NULL DEFAULT ''
 );
+-- Предишни периоди в района (напускал и после се е върнал). Текущият период е hired_on → left_on в employees.
+CREATE TABLE IF NOT EXISTS employee_periods (
+    id INTEGER PRIMARY KEY,
+    employee_id INTEGER NOT NULL REFERENCES employees(id),
+    hired_on TEXT NOT NULL,
+    left_on TEXT NOT NULL
+);
 """
 
 # Подредба по длъжност: първото съвпадение определя групата (регулярен израз върху длъжността).
@@ -61,7 +69,8 @@ GROUP_ORDER = [label for label, _ in RANK_GROUPS] + [OTHER_GROUP]
 # Съкращения в длъжностите, които остават с главни букви.
 ABBREVIATIONS = {"ХЕС", "ВЕЦ", "ПАВЕЦ", "ПП", "КИП", "ПСМ", "ТЕЦ", "ЯЗ", "ГПП"}
 
-EVENT_LABELS = {"hired": "Постъпване", "edited": "Редакция", "left": "Напускане", "restored": "Върнат на работа"}
+EVENT_LABELS = {"hired": "Постъпване", "edited": "Редакция", "left": "Напускане", "restored": "Върнат на работа",
+                "period": "Предишен период"}
 
 # Началният личен състав (име, длъжност), както е подаден.
 SEED = """
@@ -142,6 +151,10 @@ def _now():
     return datetime.now().isoformat(timespec="seconds")
 
 
+# Къде е позициониран служителят (поле „Място“).
+SITES = ["Яз. стена Въча", "Яз. стена Кричим"]
+
+
 # ---------- база ----------
 
 def init_db():
@@ -149,6 +162,8 @@ def init_db():
     db.executescript(SCHEMA)
     if "photo" not in {r["name"] for r in db.execute("PRAGMA table_info(employees)")}:
         db.execute("ALTER TABLE employees ADD COLUMN photo TEXT NOT NULL DEFAULT ''")
+    if "site" not in {r["name"] for r in db.execute("PRAGMA table_info(employees)")}:
+        db.execute("ALTER TABLE employees ADD COLUMN site TEXT NOT NULL DEFAULT ''")
     if db.execute("SELECT COUNT(*) FROM employees").fetchone()[0] == 0:
         for line in SEED.strip().splitlines():
             name, position = line.split("|")
@@ -266,12 +281,21 @@ def employees():
     sort = "az" if request.args.get("sort") == "az" else "rank"
     view = "karti" if request.args.get("izgled") == "karti" else "tablica"
     rows = [_view(r) for r in get_db().execute("SELECT * FROM employees WHERE left_on IS NULL")]
+    site_counts = {s: sum(1 for r in rows if r["site"] == s) for s in SITES}
+    site = request.args.get("myasto", "")
+    if site in SITES:
+        rows = [r for r in rows if r["site"] == site]
+    elif site == "bez":
+        rows = [r for r in rows if not r["site"]]
+    else:
+        site = ""
     rows.sort(key=sort_key_alpha if sort == "az" else sort_key_rank)
     former = get_db().execute("SELECT COUNT(*) FROM employees WHERE left_on IS NOT NULL").fetchone()[0]
     cards = {r["employee_id"]: r for r in get_db().execute(
         "SELECT c.employee_id, c.id, SUM(CASE WHEN ci.returned_on IS NULL AND ci.id IS NOT NULL THEN 1 ELSE 0 END) AS n"
         " FROM cards c LEFT JOIN card_items ci ON ci.card_id = c.id WHERE c.kind = 'personal' GROUP BY c.id")}
     return render_template("pages/employees.html", rows=rows, sort=sort, view=view, former_count=former, cards=cards,
+                           sites=SITES, site=site, site_counts=site_counts,
                            manage=request.endpoint == "personnel.manage")
 
 
@@ -286,18 +310,15 @@ def show(employee_id):
     """Карта на служителя: снимка, данни, имущество по картон, потребителски профил и история."""
     db = get_db()
     employee = _view(_get(employee_id))
-    today = date.today()
-    if employee["hired_on"]:
-        end = employee["left_on"] or today
-        months = (end.year - employee["hired_on"].year) * 12 + end.month - employee["hired_on"].month - (end.day < employee["hired_on"].day)
-        employee["service"] = (months // 12, months % 12)
+    periods = _periods(employee_id)
+    employee["service"] = service(employee, periods)
     card = db.execute("SELECT * FROM cards WHERE kind = 'personal' AND employee_id = ?", (employee_id,)).fetchone()
     items = db.execute("SELECT * FROM card_items WHERE card_id = ? AND returned_on IS NULL ORDER BY section, inv_number",
                        (card["id"],)).fetchall() if card else []
     account = db.execute("SELECT * FROM users WHERE employee_id = ?", (employee_id,)).fetchone()
     mol_count = db.execute("SELECT COUNT(*) FROM stock_items WHERE mol_employee_id = ?", (employee_id,)).fetchone()[0]
     return render_template("pages/employee_show.html", employee=employee, card=card, items=items, account=account,
-                           mol_count=mol_count, events=_events(employee_id)[:10])
+                           mol_count=mol_count, periods=periods, events=_events(employee_id)[:10])
 
 
 @bp.route("/sluzhiteli/<int:employee_id>/snimka")
@@ -311,7 +332,7 @@ def photo(employee_id):
 @bp.route("/bivshi")
 def former():
     rows = [_view(r) for r in get_db().execute("SELECT * FROM employees WHERE left_on IS NOT NULL ORDER BY left_on DESC")]
-    return render_template("pages/employees_former.html", rows=rows)
+    return render_template("pages/employees_former.html", rows=rows, today_iso=date.today().isoformat())
 
 
 @bp.route("/sluzhiteli/nov", methods=["GET", "POST"])
@@ -322,14 +343,15 @@ def create():
             db = get_db()
             employee_id = _insert(db, data["first_name"], data["middle_name"], data["last_name"], data["position"],
                                   data["hired_on"], data["note"])
+            db.execute("UPDATE employees SET site = ? WHERE id = ?", (data["site"], employee_id))
             _apply_photo(db, employee_id)
             db.commit()
             flash(f"Служителят {data['first_name']} {data['last_name']} е добавен.", "ok")
             return redirect(url_for("personnel.manage"))
         for message in errors:
             flash(message, "bad")
-        return render_template("pages/employee_form.html", employee=data, positions=_positions(), events=[])
-    return render_template("pages/employee_form.html", employee={}, positions=_positions(), events=[])
+        return render_template("pages/employee_form.html", employee=data, positions=_positions(), sites=SITES, events=[])
+    return render_template("pages/employee_form.html", employee={}, positions=_positions(), sites=SITES, events=[])
 
 
 @bp.route("/sluzhiteli/<int:employee_id>/redakcia", methods=["GET", "POST"])
@@ -347,9 +369,9 @@ def edit(employee_id):
             if changes:
                 db.execute(
                     "UPDATE employees SET first_name = ?, middle_name = ?, last_name = ?, position = ?, hired_on = ?, note = ?,"
-                    " updated_at = ? WHERE id = ?",
+                    " site = ?, updated_at = ? WHERE id = ?",
                     (data["first_name"], data["middle_name"], data["last_name"], data["position"], data["hired_on"],
-                     data["note"], _now(), employee_id),
+                     data["note"], data["site"], _now(), employee_id),
                 )
                 _log(db, employee_id, "edited", "; ".join(changes))
                 db.commit()
@@ -360,7 +382,9 @@ def edit(employee_id):
         employee = {**_view(row), **data}
     else:
         employee = _view(row)
-    return render_template("pages/employee_form.html", employee=employee, positions=_positions(), events=_events(employee_id))
+    return render_template("pages/employee_form.html", employee=employee, positions=_positions(), sites=SITES,
+                           periods=_periods(employee_id), service=service(employee, _periods(employee_id)),
+                           events=_events(employee_id))
 
 
 @bp.route("/sluzhiteli/<int:employee_id>/napuskane", methods=["GET", "POST"])
@@ -390,15 +414,88 @@ def restore(employee_id):
     row = _get(employee_id)
     if row["left_on"]:
         db = get_db()
-        db.execute("UPDATE employees SET left_on = NULL, leave_reason = '', updated_at = ? WHERE id = ?", (_now(), employee_id))
-        _log(db, employee_id, "restored", f"Напуснал на {date.fromisoformat(row['left_on']).strftime('%d.%m.%Y')}")
+        # досегашният период става предишен, а новият започва от датата на връщане
+        if row["hired_on"]:
+            db.execute("INSERT INTO employee_periods (employee_id, hired_on, left_on) VALUES (?, ?, ?)",
+                       (employee_id, row["hired_on"], row["left_on"]))
+        hired_on = _parse_date(request.form.get("hired_on")) or date.today().isoformat()
+        db.execute("UPDATE employees SET hired_on = ?, left_on = NULL, leave_reason = '', updated_at = ? WHERE id = ?",
+                   (hired_on, _now(), employee_id))
+        _log(db, employee_id, "restored", f"Напуснал на {date.fromisoformat(row['left_on']).strftime('%d.%m.%Y')},"
+                                          f" отново постъпил на {date.fromisoformat(hired_on).strftime('%d.%m.%Y')}")
         db.commit()
         flash(f"{full_name(row)} е върнат в личния състав.", "ok")
     return redirect(url_for("personnel.manage"))
 
 
+@bp.route("/sluzhiteli/<int:employee_id>/periodi", methods=["POST"])
+def add_period(employee_id):
+    """Предишен период в района: от–до (въвежда се от админ панела, при редакция на служителя)."""
+    _get(employee_id)
+    start, end = _parse_date(request.form.get("period_from")), _parse_date(request.form.get("period_to"))
+    if not (start and end) or start > end:
+        flash("Попълнете начало и край на периода (началото преди края).", "bad")
+    else:
+        db = get_db()
+        db.execute("INSERT INTO employee_periods (employee_id, hired_on, left_on) VALUES (?, ?, ?)", (employee_id, start, end))
+        _log(db, employee_id, "period", f"Добавен {_bg(start)} – {_bg(end)}")
+        db.commit()
+        flash("Периодът е добавен.", "ok")
+    return redirect(url_for("personnel.edit", employee_id=employee_id) + "#periodi")
+
+
+@bp.route("/periodi/<int:period_id>/iztrivane", methods=["POST"])
+def remove_period(period_id):
+    db = get_db()
+    row = db.execute("SELECT * FROM employee_periods WHERE id = ?", (period_id,)).fetchone()
+    if row is None:
+        abort(404)
+    db.execute("DELETE FROM employee_periods WHERE id = ?", (period_id,))
+    _log(db, row["employee_id"], "period", f"Премахнат {_bg(row['hired_on'])} – {_bg(row['left_on'])}")
+    db.commit()
+    flash("Периодът е премахнат.", "ok")
+    return redirect(url_for("personnel.edit", employee_id=row["employee_id"]) + "#periodi")
+
+
+def _bg(iso):
+    return date.fromisoformat(iso).strftime("%d.%m.%Y")
+
+
+def _periods(employee_id):
+    rows = get_db().execute("SELECT * FROM employee_periods WHERE employee_id = ? ORDER BY hired_on", (employee_id,)).fetchall()
+    return [{"id": r["id"], "hired_on": date.fromisoformat(r["hired_on"]), "left_on": date.fromisoformat(r["left_on"])}
+            for r in rows]
+
+
+def _span(start, end):
+    """Пълни месеци и останали дни между две дати (включително последния ден)."""
+    end = end + timedelta(days=1)
+    months = (end.year - start.year) * 12 + end.month - start.month
+    if end.day < start.day:
+        months -= 1
+    anchor_month = start.month - 1 + months
+    anchor = date(start.year + anchor_month // 12, anchor_month % 12 + 1, 1)
+    anchor = anchor.replace(day=min(start.day, calendar.monthrange(anchor.year, anchor.month)[1]))
+    return months, (end - anchor).days
+
+
+def service(employee, periods):
+    """Общ стаж в района: предишните периоди плюс текущия. Връща (години, месеци, дни) или None."""
+    spans = [(p["hired_on"], p["left_on"]) for p in periods]
+    if employee["hired_on"]:
+        spans.append((employee["hired_on"], employee["left_on"] or date.today()))
+    if not spans:
+        return None
+    months = days = 0
+    for start, end in spans:
+        m, d = _span(start, end)
+        months, days = months + m, days + d
+    months, days = months + days // 30, days % 30
+    return months // 12, months % 12, days
+
+
 FIELD_LABELS = {"first_name": "Име", "middle_name": "Презиме", "last_name": "Фамилия", "position": "Длъжност",
-                "hired_on": "Постъпил", "note": "Бележка"}
+                "hired_on": "Постъпил", "site": "Място", "note": "Бележка"}
 
 
 def _read_form():
@@ -409,6 +506,7 @@ def _read_form():
         "last_name": normalize_name(form.get("last_name")),
         "position": normalize_position(form.get("position")),
         "hired_on": _parse_date(form.get("hired_on")),
+        "site": form.get("site") if form.get("site") in SITES else "",
         "note": form.get("note", "").strip(),
     }
     errors = [f"Попълнете „{FIELD_LABELS[key]}“." for key in ("first_name", "last_name", "position") if not data[key]]

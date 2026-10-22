@@ -1,7 +1,7 @@
 {% extends "layouts/app_shell.html" %}
 {% set sidebar_active = 'kartoni' %}
 {% set header_title = card.title %}
-{% set header_subtitle = 'Личен картон' if card.kind == 'personal' else 'Картон по съоръжение' %}
+{% set header_subtitle = {'personal': 'Личен картон', 'vehicle': 'Картон на автомобил'}.get(card.kind, 'Картон по съоръжение') %}
 {% set header_breadcrumbs = [{'label': 'Начало', 'url': url_for('dashboard')}, {'label': 'Персонал'}, {'label': 'Картони', 'url': url_for('cards.index', vid=card.kind)}, {'label': card.title}] %}
 {% from "components/date_input.html" import date_input %}
 {% block content %}

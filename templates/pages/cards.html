@@ -17,24 +17,31 @@
                     <a class="btn{% if k == kind %} is-active{% endif %}" href="{{ url_for('cards.index', vid=k) }}">{{ label }} ({{ counts.get(k, 0) }})</a>
                     {% endfor %}
                 </div>
+                {% if kind == 'personal' %}
+                <div class="seg-toggle" role="group" aria-label="Място">
+                    <a class="btn{% if not site %} is-active{% endif %}" href="{{ url_for('cards.index', vid=kind) }}">Всички</a>
+                    {% for s in sites %}<a class="btn{% if s == site %} is-active{% endif %}" href="{{ url_for('cards.index', vid=kind, myasto=s) }}">{{ s|replace('Яз. стена ', '') }} ({{ site_counts[s] }})</a>{% endfor %}
+                </div>
+                {% endif %}
                 <a class="btn" href="{{ url_for('cards.problems') }}">Разминавания</a>
                 <a class="btn primary" href="{{ url_for('cards.import_page') }}">Импорт на картони</a>
             </div>
         </div>
         <div class="table-wrap">
             <table class="data-table">
-                <thead><tr><th>{{ 'Служител' if kind == 'personal' else 'Съоръжение / помещение' }}</th><th class="num">Инвентар</th><th class="num">ЛПС</th><th class="num">Дълготрайни активи</th><th></th></tr></thead>
+                <thead><tr><th>{{ {'personal': 'Служител', 'facility': 'Съоръжение / помещение', 'vehicle': 'Автомобил'}[kind] }}</th>{% if kind == 'personal' %}<th>Място</th>{% endif %}<th class="num">Инвентар</th><th class="num">ЛПС</th><th class="num">Дълготрайни активи</th><th></th></tr></thead>
                 <tbody>
                 {% for row in rows %}
                     <tr>
                         <td><a class="row-link" href="{{ url_for('cards.show', card_id=row.id) }}">{{ row.title }}</a>{% if row.left_on %} <span class="status-dot status-dot--warn">напуснал</span>{% endif %}</td>
+                        {% if kind == 'personal' %}<td class="muted">{{ row.site }}</td>{% endif %}
                         <td class="num mono">{{ row.n_inventory or '' }}</td>
                         <td class="num mono">{{ row.n_ppe or '' }}</td>
                         <td class="num mono">{{ row.n_fixed or '' }}</td>
                         <td class="row-actions"><a class="btn" href="{{ url_for('cards.show', card_id=row.id) }}">Отвори</a></td>
                     </tr>
                 {% else %}
-                    <tr><td colspan="5">Няма картони. Качете .xls картони от „Импорт на картони“.</td></tr>
+                    <tr><td colspan="{{ 6 if kind == 'personal' else 5 }}">Няма картони. Качете .xls картони от „Импорт на картони“.</td></tr>
                 {% endfor %}
                 </tbody>
             </table>

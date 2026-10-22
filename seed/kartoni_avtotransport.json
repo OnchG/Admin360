@@ -1,0 +1,202 @@
+[
+ {
+  "owner": "УАЗ С 3836 ВР",
+  "kind": "vehicle",
+  "items": [
+   {
+    "section": "inventory",
+    "inv": "9-110138",
+    "name": "Ключове гаечни к-кт УАЗ",
+    "date": "2011-02-21",
+    "qty": 1.0
+   },
+   {
+    "section": "inventory",
+    "inv": "9-190003",
+    "name": "Такаламит УАЗ",
+    "date": "2011-02-21",
+    "qty": 1.0
+   },
+   {
+    "section": "inventory",
+    "inv": "9-120030",
+    "name": "Лопатка със сг. Дръжка УАЗ",
+    "date": "2011-02-21",
+    "qty": 1.0
+   },
+   {
+    "section": "inventory",
+    "inv": "9-010008",
+    "name": "Алармена система УАЗ",
+    "date": "2011-02-21",
+    "qty": 1.0
+   },
+   {
+    "section": "inventory",
+    "inv": "9-010036",
+    "name": "Акумулатор 12/720 С 3836",
+    "date": "2023-06-04",
+    "qty": 1.0
+   },
+   {
+    "section": "inventory",
+    "inv": "9-040029",
+    "name": "Гуми външни летни С 3836",
+    "date": "2018-04-30",
+    "qty": 4.0
+   },
+   {
+    "section": "inventory",
+    "inv": "9-240001",
+    "name": "Чукове метални УАЗ",
+    "date": "2011-02-21",
+    "qty": 1.0
+   }
+  ]
+ },
+ {
+  "owner": "Санг Йонг СВ 9022 МВ",
+  "kind": "vehicle",
+  "items": [
+   {
+    "section": "inventory",
+    "inv": "",
+    "name": "Резервна гума",
+    "date": "2018-03-15",
+    "qty": 1.0
+   },
+   {
+    "section": "inventory",
+    "inv": "",
+    "name": "Крик",
+    "date": "2018-03-15",
+    "qty": 1.0
+   },
+   {
+    "section": "inventory",
+    "inv": "",
+    "name": "Ключ за гуми",
+    "date": "2018-03-15",
+    "qty": 1.0
+   },
+   {
+    "section": "inventory",
+    "inv": "",
+    "name": "Контактен ключ с дистанц.",
+    "date": "2018-03-15",
+    "qty": 2.0
+   },
+   {
+    "section": "inventory",
+    "inv": "",
+    "name": "Манивела за крик",
+    "date": "2018-03-15",
+    "qty": 1.0
+   },
+   {
+    "section": "inventory",
+    "inv": "",
+    "name": "Отвертка",
+    "date": "2018-03-15",
+    "qty": 1.0
+   },
+   {
+    "section": "inventory",
+    "inv": "",
+    "name": "Гаечен ключ",
+    "date": "2018-03-15",
+    "qty": 1.0
+   },
+   {
+    "section": "inventory",
+    "inv": "",
+    "name": "Авто ресивър-Pioneer",
+    "date": "2018-03-15",
+    "qty": 1.0
+   },
+   {
+    "section": "inventory",
+    "inv": "",
+    "name": "Стелки комплект",
+    "date": "2018-03-15",
+    "qty": 1.0
+   },
+   {
+    "section": "inventory",
+    "inv": "",
+    "name": "Пожарогасител",
+    "date": "2018-03-15",
+    "qty": 1.0
+   },
+   {
+    "section": "inventory",
+    "inv": "",
+    "name": "Светлоотразителна жилетка",
+    "date": "2018-03-15",
+    "qty": 1.0
+   },
+   {
+    "section": "inventory",
+    "inv": "",
+    "name": "Светлоотр. Триъгълник",
+    "date": "2018-03-15",
+    "qty": 1.0
+   },
+   {
+    "section": "inventory",
+    "inv": "",
+    "name": "Автоаптечка",
+    "date": "2018-03-15",
+    "qty": 1.0
+   },
+   {
+    "section": "inventory",
+    "inv": "9-040070",
+    "name": "Гуми външни летни",
+    "date": "2025-04-25",
+    "qty": 4.0
+   }
+  ]
+ },
+ {
+  "owner": "Ситроен С4 СА 4348 КМ",
+  "kind": "vehicle",
+  "items": [
+   {
+    "section": "inventory",
+    "inv": "9-160138",
+    "name": "Пожарогасител",
+    "date": "2026-07-31",
+    "qty": 1.0
+   },
+   {
+    "section": "inventory",
+    "inv": "9-110319",
+    "name": "Крик 2 тона",
+    "date": "2026-07-31",
+    "qty": 1.0
+   },
+   {
+    "section": "inventory",
+    "inv": "9-010054",
+    "name": "Акумулатор",
+    "date": "2026-07-31",
+    "qty": 1.0
+   },
+   {
+    "section": "inventory",
+    "inv": "9-040080",
+    "name": "Гуми летни",
+    "date": "2026-07-31",
+    "qty": 4.0
+   },
+   {
+    "section": "inventory",
+    "inv": "9-040081",
+    "name": "Гуми зимни",
+    "date": "2026-07-31",
+    "qty": 4.0
+   }
+  ]
+ }
+]
