@@ -49,6 +49,33 @@
         </div>
     </form>
 
+    {% if not is_new %}
+    <section class="dash-card" id="periodi">
+        <div class="dash-card__head">
+            <h2>Периоди в района</h2>
+            {% if service %}<span class="count-note">общ стаж {{ service[0] }} г. {{ service[1] }} мес. {{ service[2] }} дни</span>{% endif %}
+        </div>
+        <p class="form-hint">Ако служителят е напускал и се е връщал, добавете предишните периоди. Стажът в района е сборът от тях и текущия период (от датата на постъпване). При „Върни в състава“ периодът се добавя сам.</p>
+        <div class="table-wrap">
+            <table class="data-table">
+                <thead><tr><th>От</th><th>До</th><th></th></tr></thead>
+                <tbody>
+                {% for p in periods %}
+                    <tr><td class="mono">{{ p.hired_on|bgdate }}</td><td class="mono">{{ p.left_on|bgdate }}</td>
+                        <td class="row-actions"><form method="post" action="{{ url_for('personnel.remove_period', period_id=p.id) }}" data-ux-skip><button class="btn danger" type="submit">Премахни</button></form></td></tr>
+                {% endfor %}
+                    <tr><td class="mono">{{ employee.hired_on|bgdate or '—' }}</td><td class="muted">{{ employee.left_on|bgdate if employee.left_on else 'досега (текущ период)' }}</td><td></td></tr>
+                </tbody>
+            </table>
+        </div>
+        <form class="form-grid form-grid--3 period-form" method="post" action="{{ url_for('personnel.add_period', employee_id=employee.id) }}" data-ux-skip>
+            <div class="field"><span>Предишен период от</span>{{ date_input('period_from', '') }}</div>
+            <div class="field"><span>до</span>{{ date_input('period_to', '') }}</div>
+            <div class="field"><span>&nbsp;</span><button class="btn" type="submit">Добави период</button></div>
+        </form>
+    </section>
+    {% endif %}
+
     {% if events %}
     <section class="dash-card">
         <div class="dash-card__head"><h2>История</h2></div>

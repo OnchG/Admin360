@@ -68,6 +68,9 @@ SEED_SITE_VACHA = "sluzhiteli_myasto_vacha"
 SITE_VACHA = "Яз. стена Въча"
 # Следващи картони: служителите от яз. стена Кричим (с поле "site") и автотранспортът.
 LATER_SEEDS = ["kartoni_stena_krichim.json", "kartoni_avtotransport.json"]
+# Удължителите са само при Стоян Коджаманов (указание от 22.10.2026).
+SEED_FIX2 = "kartoni_fix2_koilov"
+KOILOV_DROP = ("9-170005", "9-170006")
 # Склад на позиция по картон: собственият ѝ, ако е зададен, иначе складът на картона.
 EFF = "COALESCE(ci.warehouse_id, c.warehouse_id)"
 SEED_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "seed")
@@ -102,11 +105,23 @@ def _load_seed(db, filename):
         return
     with open(os.path.join(SEED_DIR, filename), encoding="utf-8") as fh:
         for card in json.load(fh):
+            if card.get("position"):
+                _ensure_employee(db, card["owner"], card["position"])
             card_id, _error = save_card(card["owner"], card["kind"], card["items"])
             if card_id and card.get("site"):
                 db.execute("UPDATE employees SET site = ? WHERE site = '' AND id ="
                            " (SELECT employee_id FROM cards WHERE id = ?)", (card["site"], card_id))
     db.execute("INSERT INTO stock_seeds (filename) VALUES (?)", (filename,))
+
+
+def _ensure_employee(db, name, position):
+    """Служител, добавен след картоните (напр. Величка Пелтекова): създава се, ако го няма по име и фамилия."""
+    from personnel import _insert, normalize_name, normalize_position
+    parts = normalize_name(name).split()
+    if db.execute("SELECT 1 FROM employees WHERE left_on IS NULL AND lower(first_name) = lower(?) AND lower(last_name) = lower(?)",
+                  (parts[0], parts[-1])).fetchone():
+        return
+    _insert(db, parts[0], " ".join(parts[1:-1]), parts[-1], normalize_position(position), None, "", "С личния картон")
 
 
 def init_db():
@@ -142,6 +157,12 @@ def init_db():
         db.execute("INSERT INTO stock_seeds (filename) VALUES (?)", (SEED_SITE_VACHA,))
     for filename in LATER_SEEDS:
         _load_seed(db, filename)
+    if not db.execute("SELECT 1 FROM stock_seeds WHERE filename = ?", (SEED_FIX2,)).fetchone():
+        marks = ",".join("?" * len(KOILOV_DROP))
+        db.execute(f"DELETE FROM card_items WHERE inv_number IN ({marks}) AND card_id IN"
+                   " (SELECT c.id FROM cards c JOIN employees e ON e.id = c.employee_id"
+                   "  WHERE e.first_name = 'Борис' AND e.last_name = 'Коилов')", KOILOV_DROP)
+        db.execute("INSERT INTO stock_seeds (filename) VALUES (?)", (SEED_FIX2,))
     db.commit()
 
 

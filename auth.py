@@ -38,6 +38,7 @@ OWNER_NAME = ("Онник", "Гюлян")
 # Страници без вход и страници само за администратор.
 PUBLIC_ENDPOINTS = {"static", "auth.login", "auth.setup"}
 ADMIN_ENDPOINTS = {"settings.page", "personnel.manage", "personnel.create", "personnel.edit", "personnel.remove",
+                   "personnel.add_period", "personnel.remove_period",
                    "personnel.restore"}
 
 

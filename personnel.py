@@ -7,10 +7,11 @@
 card_items_for() ще връща зачисленото му имущество и за всяка позиция ще се избира
 „прехвърли на друг служител“ или „бракувай“; служителят напуска едва когато нищо не остане по картона му.
 """
+import calendar
 import os
 import re
 import secrets
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 from flask import Blueprint, abort, current_app, flash, redirect, render_template, request, send_from_directory, url_for
 
@@ -39,6 +40,13 @@ CREATE TABLE IF NOT EXISTS employee_events (
     happened_at TEXT NOT NULL,
     details TEXT NOT NULL DEFAULT ''
 );
+-- Предишни периоди в района (напускал и после се е върнал). Текущият период е hired_on → left_on в employees.
+CREATE TABLE IF NOT EXISTS employee_periods (
+    id INTEGER PRIMARY KEY,
+    employee_id INTEGER NOT NULL REFERENCES employees(id),
+    hired_on TEXT NOT NULL,
+    left_on TEXT NOT NULL
+);
 """
 
 # Подредба по длъжност: първото съвпадение определя групата (регулярен израз върху длъжността).
@@ -61,7 +69,8 @@ GROUP_ORDER = [label for label, _ in RANK_GROUPS] + [OTHER_GROUP]
 # Съкращения в длъжностите, които остават с главни букви.
 ABBREVIATIONS = {"ХЕС", "ВЕЦ", "ПАВЕЦ", "ПП", "КИП", "ПСМ", "ТЕЦ", "ЯЗ", "ГПП"}
 
-EVENT_LABELS = {"hired": "Постъпване", "edited": "Редакция", "left": "Напускане", "restored": "Върнат на работа"}
+EVENT_LABELS = {"hired": "Постъпване", "edited": "Редакция", "left": "Напускане", "restored": "Върнат на работа",
+                "period": "Предишен период"}
 
 # Началният личен състав (име, длъжност), както е подаден.
 SEED = """
@@ -301,18 +310,15 @@ def show(employee_id):
     """Карта на служителя: снимка, данни, имущество по картон, потребителски профил и история."""
     db = get_db()
     employee = _view(_get(employee_id))
-    today = date.today()
-    if employee["hired_on"]:
-        end = employee["left_on"] or today
-        months = (end.year - employee["hired_on"].year) * 12 + end.month - employee["hired_on"].month - (end.day < employee["hired_on"].day)
-        employee["service"] = (months // 12, months % 12)
+    periods = _periods(employee_id)
+    employee["service"] = service(employee, periods)
     card = db.execute("SELECT * FROM cards WHERE kind = 'personal' AND employee_id = ?", (employee_id,)).fetchone()
     items = db.execute("SELECT * FROM card_items WHERE card_id = ? AND returned_on IS NULL ORDER BY section, inv_number",
                        (card["id"],)).fetchall() if card else []
     account = db.execute("SELECT * FROM users WHERE employee_id = ?", (employee_id,)).fetchone()
     mol_count = db.execute("SELECT COUNT(*) FROM stock_items WHERE mol_employee_id = ?", (employee_id,)).fetchone()[0]
     return render_template("pages/employee_show.html", employee=employee, card=card, items=items, account=account,
-                           mol_count=mol_count, events=_events(employee_id)[:10])
+                           mol_count=mol_count, periods=periods, events=_events(employee_id)[:10])
 
 
 @bp.route("/sluzhiteli/<int:employee_id>/snimka")
@@ -326,7 +332,7 @@ def photo(employee_id):
 @bp.route("/bivshi")
 def former():
     rows = [_view(r) for r in get_db().execute("SELECT * FROM employees WHERE left_on IS NOT NULL ORDER BY left_on DESC")]
-    return render_template("pages/employees_former.html", rows=rows)
+    return render_template("pages/employees_former.html", rows=rows, today_iso=date.today().isoformat())
 
 
 @bp.route("/sluzhiteli/nov", methods=["GET", "POST"])
@@ -377,6 +383,7 @@ def edit(employee_id):
     else:
         employee = _view(row)
     return render_template("pages/employee_form.html", employee=employee, positions=_positions(), sites=SITES,
+                           periods=_periods(employee_id), service=service(employee, _periods(employee_id)),
                            events=_events(employee_id))
 
 
@@ -407,11 +414,84 @@ def restore(employee_id):
     row = _get(employee_id)
     if row["left_on"]:
         db = get_db()
-        db.execute("UPDATE employees SET left_on = NULL, leave_reason = '', updated_at = ? WHERE id = ?", (_now(), employee_id))
-        _log(db, employee_id, "restored", f"Напуснал на {date.fromisoformat(row['left_on']).strftime('%d.%m.%Y')}")
+        # досегашният период става предишен, а новият започва от датата на връщане
+        if row["hired_on"]:
+            db.execute("INSERT INTO employee_periods (employee_id, hired_on, left_on) VALUES (?, ?, ?)",
+                       (employee_id, row["hired_on"], row["left_on"]))
+        hired_on = _parse_date(request.form.get("hired_on")) or date.today().isoformat()
+        db.execute("UPDATE employees SET hired_on = ?, left_on = NULL, leave_reason = '', updated_at = ? WHERE id = ?",
+                   (hired_on, _now(), employee_id))
+        _log(db, employee_id, "restored", f"Напуснал на {date.fromisoformat(row['left_on']).strftime('%d.%m.%Y')},"
+                                          f" отново постъпил на {date.fromisoformat(hired_on).strftime('%d.%m.%Y')}")
         db.commit()
         flash(f"{full_name(row)} е върнат в личния състав.", "ok")
     return redirect(url_for("personnel.manage"))
+
+
+@bp.route("/sluzhiteli/<int:employee_id>/periodi", methods=["POST"])
+def add_period(employee_id):
+    """Предишен период в района: от–до (въвежда се от админ панела, при редакция на служителя)."""
+    _get(employee_id)
+    start, end = _parse_date(request.form.get("period_from")), _parse_date(request.form.get("period_to"))
+    if not (start and end) or start > end:
+        flash("Попълнете начало и край на периода (началото преди края).", "bad")
+    else:
+        db = get_db()
+        db.execute("INSERT INTO employee_periods (employee_id, hired_on, left_on) VALUES (?, ?, ?)", (employee_id, start, end))
+        _log(db, employee_id, "period", f"Добавен {_bg(start)} – {_bg(end)}")
+        db.commit()
+        flash("Периодът е добавен.", "ok")
+    return redirect(url_for("personnel.edit", employee_id=employee_id) + "#periodi")
+
+
+@bp.route("/periodi/<int:period_id>/iztrivane", methods=["POST"])
+def remove_period(period_id):
+    db = get_db()
+    row = db.execute("SELECT * FROM employee_periods WHERE id = ?", (period_id,)).fetchone()
+    if row is None:
+        abort(404)
+    db.execute("DELETE FROM employee_periods WHERE id = ?", (period_id,))
+    _log(db, row["employee_id"], "period", f"Премахнат {_bg(row['hired_on'])} – {_bg(row['left_on'])}")
+    db.commit()
+    flash("Периодът е премахнат.", "ok")
+    return redirect(url_for("personnel.edit", employee_id=row["employee_id"]) + "#periodi")
+
+
+def _bg(iso):
+    return date.fromisoformat(iso).strftime("%d.%m.%Y")
+
+
+def _periods(employee_id):
+    rows = get_db().execute("SELECT * FROM employee_periods WHERE employee_id = ? ORDER BY hired_on", (employee_id,)).fetchall()
+    return [{"id": r["id"], "hired_on": date.fromisoformat(r["hired_on"]), "left_on": date.fromisoformat(r["left_on"])}
+            for r in rows]
+
+
+def _span(start, end):
+    """Пълни месеци и останали дни между две дати (включително последния ден)."""
+    end = end + timedelta(days=1)
+    months = (end.year - start.year) * 12 + end.month - start.month
+    if end.day < start.day:
+        months -= 1
+    anchor_month = start.month - 1 + months
+    anchor = date(start.year + anchor_month // 12, anchor_month % 12 + 1, 1)
+    anchor = anchor.replace(day=min(start.day, calendar.monthrange(anchor.year, anchor.month)[1]))
+    return months, (end - anchor).days
+
+
+def service(employee, periods):
+    """Общ стаж в района: предишните периоди плюс текущия. Връща (години, месеци, дни) или None."""
+    spans = [(p["hired_on"], p["left_on"]) for p in periods]
+    if employee["hired_on"]:
+        spans.append((employee["hired_on"], employee["left_on"] or date.today()))
+    if not spans:
+        return None
+    months = days = 0
+    for start, end in spans:
+        m, d = _span(start, end)
+        months, days = months + m, days + d
+    months, days = months + days // 30, days % 30
+    return months // 12, months % 12, days
 
 
 FIELD_LABELS = {"first_name": "Име", "middle_name": "Презиме", "last_name": "Фамилия", "position": "Длъжност",

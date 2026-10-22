@@ -3,6 +3,8 @@
 {% set header_title = 'Бивши служители' %}
 {% set header_subtitle = 'История на личния състав' %}
 {% set header_breadcrumbs = [{'label': 'Начало', 'url': url_for('dashboard')}, {'label': 'Персонал'}, {'label': 'Служители', 'url': url_for('personnel.employees')}, {'label': 'Бивши служители'}] %}
+{% from "components/date_input.html" import date_input %}
+{% set today = today_iso %}
 {% block content %}
 <div class="page">
     <section class="dash-card">
@@ -12,7 +14,7 @@
         </div>
         <div class="table-wrap">
             <table class="data-table">
-                <thead><tr><th>Име, презиме, фамилия</th><th>Длъжност</th><th>Постъпил</th><th>Напуснал</th><th>Причина</th><th></th></tr></thead>
+                <thead><tr><th>Име, презиме, фамилия</th><th>Длъжност</th><th>Постъпил</th><th>Напуснал</th><th>Причина</th><th>Връщане на дата</th></tr></thead>
                 <tbody>
                 {% for row in rows %}
                     <tr>
@@ -23,8 +25,9 @@
                         <td>{{ row.leave_reason }}</td>
                         <td class="row-actions">
                             {% if current_user.is_admin %}
-                            <form method="post" action="{{ url_for('personnel.restore', employee_id=row.id) }}" data-ux-skip>
-                                <button class="btn" type="submit">Върни в състава</button>
+                            <form class="restore-form" method="post" action="{{ url_for('personnel.restore', employee_id=row.id) }}" data-ux-skip>
+                                {{ date_input('hired_on', today) }}
+                                <button class="btn" type="submit" title="Постъпва отново на избраната дата; досегашният период остава в стажа">Върни в състава</button>
                             </form>
                             {% endif %}
                         </td>

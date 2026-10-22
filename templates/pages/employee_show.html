@@ -21,7 +21,8 @@
             <dl class="person-facts">
                 <div><dt>Място</dt><dd>{{ employee.site or '—' }}</dd></div>
                 <div><dt>Постъпил</dt><dd>{{ employee.hired_on|bgdate or '—' }}</dd></div>
-                <div><dt>Стаж в района</dt><dd>{% if employee.service %}{{ employee.service[0] }} г. {{ employee.service[1] }} мес.{% else %}—{% endif %}</dd></div>
+                <div><dt>Стаж в района</dt><dd>{% if employee.service %}{{ employee.service[0] }} г. {{ employee.service[1] }} мес. {{ employee.service[2] }} дни{% else %}—{% endif %}
+                    {% if periods %}<span class="person-facts__note">{% for p in periods %}{{ p.hired_on|bgdate }} – {{ p.left_on|bgdate }}; {% endfor %}от {{ employee.hired_on|bgdate }}</span>{% endif %}</dd></div>
                 <div><dt>Имущество по картон</dt><dd>{{ items|length }} позиции</dd></div>
                 {% if mol_count %}<div><dt>МОЛ на</dt><dd><a class="row-link" href="{{ url_for('stock.items') }}">{{ mol_count }} позиции в склада</a></dd></div>{% endif %}
                 {% if account %}<div><dt>Достъп до системата</dt><dd>{{ account.username }} · {{ roles[account.role] }}{% if not account.active %} (спрян){% endif %}</dd></div>{% endif %}
