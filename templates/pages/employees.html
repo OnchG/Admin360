@@ -9,14 +9,45 @@
         <div class="dash-card__head">
             <h2>Личен състав <span class="count-note">{{ rows|length }} служители</span></h2>
             <div class="head-actions">
+                {% set view_arg = 'karti' if view == 'karti' else None %}
+                <div class="seg-toggle" role="group" aria-label="Изглед">
+                    <a class="btn{% if view != 'karti' %} is-active{% endif %}" href="{{ url_for('personnel.employees', sort=sort if sort == 'az' else None) }}">Таблица</a>
+                    <a class="btn{% if view == 'karti' %} is-active{% endif %}" href="{{ url_for('personnel.employees', sort=sort if sort == 'az' else None, izgled='karti') }}">Карти</a>
+                </div>
                 <div class="seg-toggle" role="group" aria-label="Подредба">
-                    <a class="btn{% if sort == 'rank' %} is-active{% endif %}" href="{{ url_for('personnel.employees') }}">По длъжност</a>
-                    <a class="btn{% if sort == 'az' %} is-active{% endif %}" href="{{ url_for('personnel.employees', sort='az') }}">По азбучен ред</a>
+                    <a class="btn{% if sort == 'rank' %} is-active{% endif %}" href="{{ url_for('personnel.employees', izgled=view_arg) }}">По длъжност</a>
+                    <a class="btn{% if sort == 'az' %} is-active{% endif %}" href="{{ url_for('personnel.employees', sort='az', izgled=view_arg) }}">По азбучен ред</a>
                 </div>
                 <a class="btn" href="{{ url_for('personnel.former') }}">Бивши служители ({{ former_count }})</a>
                 <a class="btn primary" href="{{ url_for('personnel.create') }}">Нов служител</a>
             </div>
         </div>
+        {% if view == 'karti' %}
+        {% for row in rows %}
+            {% if loop.first or (sort == 'rank' and row.group != loop.previtem.group) %}
+            {% if not loop.first %}</div>{% endif %}
+            {% if sort == 'rank' %}<h3 class="people-group">{{ row.group }}</h3>{% endif %}
+            <div class="people-grid">
+            {% endif %}
+            {% set card = cards.get(row.id) %}
+            <article class="person-card">
+                <a class="person-card__photo" href="{{ url_for('personnel.edit', employee_id=row.id) }}" aria-label="{{ row.full_name }}">
+                    {% if row.photo %}<img src="{{ url_for('personnel.photo', employee_id=row.id) }}" alt="" loading="lazy">{% else %}<span>{{ row.initials }}</span>{% endif %}
+                </a>
+                <div class="person-card__body">
+                    <a class="person-card__name" href="{{ url_for('personnel.edit', employee_id=row.id) }}">{{ row.full_name }}</a>
+                    <div class="person-card__position">{{ row.position }}</div>
+                    <div class="person-card__meta">
+                        {% if row.hired_on %}<span>от {{ row.hired_on|bgdate }}</span>{% endif %}
+                        {% if card %}<a class="chip chip--small" href="{{ url_for('cards.show', card_id=card.id) }}">Картон · {{ card.n }}</a>{% endif %}
+                    </div>
+                </div>
+            </article>
+            {% if loop.last %}</div>{% endif %}
+        {% else %}
+            <p class="muted">Няма служители.</p>
+        {% endfor %}
+        {% else %}
         <div class="table-wrap">
             <table class="data-table">
                 <thead><tr><th class="num">№</th><th>Име, презиме, фамилия</th><th>Длъжност</th><th>Постъпил</th><th></th></tr></thead>
@@ -27,7 +58,7 @@
                     {% endif %}
                     <tr>
                         <td class="num mono">{{ loop.index }}</td>
-                        <td><a class="row-link" href="{{ url_for('personnel.edit', employee_id=row.id) }}">{{ row.full_name }}</a></td>
+                        <td><a class="row-link person-link" href="{{ url_for('personnel.edit', employee_id=row.id) }}"><span class="avatar avatar--sm">{% if row.photo %}<img src="{{ url_for('personnel.photo', employee_id=row.id) }}" alt="" loading="lazy">{% else %}<span>{{ row.initials }}</span>{% endif %}</span>{{ row.full_name }}</a></td>
                         <td>{{ row.position }}</td>
                         <td class="mono">{{ row.hired_on|bgdate }}</td>
                         <td class="row-actions">
@@ -41,6 +72,7 @@
                 </tbody>
             </table>
         </div>
+        {% endif %}
     </section>
 </div>
 {% endblock %}

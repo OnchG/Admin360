@@ -7,10 +7,12 @@
 card_items_for() ще връща зачисленото му имущество и за всяка позиция ще се избира
 „прехвърли на друг служител“ или „бракувай“; служителят напуска едва когато нищо не остане по картона му.
 """
+import os
 import re
+import secrets
 from datetime import date, datetime
 
-from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
+from flask import Blueprint, abort, current_app, flash, redirect, render_template, request, send_from_directory, url_for
 
 from db import get_db
 
@@ -145,6 +147,8 @@ def _now():
 def init_db():
     db = get_db()
     db.executescript(SCHEMA)
+    if "photo" not in {r["name"] for r in db.execute("PRAGMA table_info(employees)")}:
+        db.execute("ALTER TABLE employees ADD COLUMN photo TEXT NOT NULL DEFAULT ''")
     if db.execute("SELECT COUNT(*) FROM employees").fetchone()[0] == 0:
         for line in SEED.strip().splitlines():
             name, position = line.split("|")
@@ -164,6 +168,59 @@ def _insert(db, first, middle, last, position, hired_on, note, details=""):
     return cur.lastrowid
 
 
+# ---------- снимки ----------
+
+PHOTO_SIZE = 800  # по-дългата страна, в пиксели
+
+
+def _photo_dir():
+    path = os.path.join(current_app.instance_path, "photos")
+    os.makedirs(path, exist_ok=True)
+    return path
+
+
+def _save_photo(db, employee_id, upload):
+    """Записва качената снимка (смалена, JPEG) и връща грешка или None."""
+    from PIL import Image, ImageOps, UnidentifiedImageError
+    try:
+        image = ImageOps.exif_transpose(Image.open(upload.stream))
+        image.thumbnail((PHOTO_SIZE, PHOTO_SIZE))
+        image = image.convert("RGB")
+    except (UnidentifiedImageError, OSError):
+        return "Файлът не е снимка (поддържат се JPG, PNG, WEBP и др.)."
+    # ново име при всяка смяна, за да не се показва старата снимка от кеша на браузъра
+    filename = f"{employee_id}-{secrets.token_hex(4)}.jpg"
+    image.save(os.path.join(_photo_dir(), filename), "JPEG", quality=85)
+    _drop_photo(db, employee_id)
+    db.execute("UPDATE employees SET photo = ? WHERE id = ?", (filename, employee_id))
+    return None
+
+
+def _drop_photo(db, employee_id):
+    row = db.execute("SELECT photo FROM employees WHERE id = ?", (employee_id,)).fetchone()
+    if row and row["photo"]:
+        try:
+            os.remove(os.path.join(_photo_dir(), row["photo"]))
+        except FileNotFoundError:
+            pass
+        db.execute("UPDATE employees SET photo = '' WHERE id = ?", (employee_id,))
+
+
+def _apply_photo(db, employee_id):
+    """Снимка от формата: нова, премахване или без промяна. Връща описание за историята или None."""
+    upload = request.files.get("photo")
+    if upload and upload.filename:
+        error = _save_photo(db, employee_id, upload)
+        if error:
+            flash(error, "bad")
+            return None
+        return "Снимка: нова"
+    if request.form.get("remove_photo"):
+        _drop_photo(db, employee_id)
+        return "Снимка: премахната"
+    return None
+
+
 def _log(db, employee_id, kind, details=""):
     db.execute(
         "INSERT INTO employee_events (employee_id, kind, happened_at, details) VALUES (?, ?, ?, ?)",
@@ -181,6 +238,7 @@ def _get(employee_id):
 def _view(row):
     item = dict(row)
     item["full_name"] = full_name(row)
+    item["initials"] = (row["first_name"][:1] + row["last_name"][:1]).upper()
     item["group"] = rank_group(row["position"])
     for key in ("hired_on", "left_on"):
         item[key] = date.fromisoformat(row[key]) if row[key] else None
@@ -206,10 +264,22 @@ def card_items_for(employee_id):
 @bp.route("/sluzhiteli")
 def employees():
     sort = "az" if request.args.get("sort") == "az" else "rank"
+    view = "karti" if request.args.get("izgled") == "karti" else "tablica"
     rows = [_view(r) for r in get_db().execute("SELECT * FROM employees WHERE left_on IS NULL")]
     rows.sort(key=sort_key_alpha if sort == "az" else sort_key_rank)
     former = get_db().execute("SELECT COUNT(*) FROM employees WHERE left_on IS NOT NULL").fetchone()[0]
-    return render_template("pages/employees.html", rows=rows, sort=sort, former_count=former)
+    cards = {r["employee_id"]: r for r in get_db().execute(
+        "SELECT c.employee_id, c.id, SUM(CASE WHEN ci.returned_on IS NULL AND ci.id IS NOT NULL THEN 1 ELSE 0 END) AS n"
+        " FROM cards c LEFT JOIN card_items ci ON ci.card_id = c.id WHERE c.kind = 'personal' GROUP BY c.id")}
+    return render_template("pages/employees.html", rows=rows, sort=sort, view=view, former_count=former, cards=cards)
+
+
+@bp.route("/sluzhiteli/<int:employee_id>/snimka")
+def photo(employee_id):
+    row = _get(employee_id)
+    if not row["photo"]:
+        abort(404)
+    return send_from_directory(_photo_dir(), row["photo"], max_age=31536000)
 
 
 @bp.route("/bivshi")
@@ -224,7 +294,9 @@ def create():
         data, errors = _read_form()
         if not errors:
             db = get_db()
-            _insert(db, data["first_name"], data["middle_name"], data["last_name"], data["position"], data["hired_on"], data["note"])
+            employee_id = _insert(db, data["first_name"], data["middle_name"], data["last_name"], data["position"],
+                                  data["hired_on"], data["note"])
+            _apply_photo(db, employee_id)
             db.commit()
             flash(f"Служителят {data['first_name']} {data['last_name']} е добавен.", "ok")
             return redirect(url_for("personnel.employees"))
@@ -242,8 +314,11 @@ def edit(employee_id):
         if not errors:
             changes = [f"{label}: {row[key] or '—'} → {data[key] or '—'}"
                        for key, label in FIELD_LABELS.items() if (row[key] or "") != (data[key] or "")]
+            db = get_db()
+            photo_change = _apply_photo(db, employee_id)
+            if photo_change:
+                changes.append(photo_change)
             if changes:
-                db = get_db()
                 db.execute(
                     "UPDATE employees SET first_name = ?, middle_name = ?, last_name = ?, position = ?, hired_on = ?, note = ?,"
                     " updated_at = ? WHERE id = ?",
