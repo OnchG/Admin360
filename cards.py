@@ -148,6 +148,17 @@ def holders(warehouse_id, inv_number):
         " AND ci.returned_on IS NULL ORDER BY c.title", (warehouse_id, inv_number)).fetchall()
 
 
+def holders_by_inv(warehouse_id):
+    """Инв. номер -> кой държи позиции с него (за всички номера в склада наведнъж)."""
+    result = defaultdict(list)
+    for row in get_db().execute(
+            "SELECT c.id AS card_id, c.title, c.kind, ci.inv_number, ci.name, ci.quantity, ci.issued_on FROM card_items ci"
+            f" JOIN cards c ON c.id = ci.card_id WHERE {EFF} = ? AND ci.section = 'inventory'"
+            " AND ci.returned_on IS NULL AND ci.inv_number != '' ORDER BY c.kind, c.title", (warehouse_id,)):
+        result[row["inv_number"]].append(row)
+    return result
+
+
 def stocked_warehouses():
     """Складове, за които вече има заредени наличности."""
     return {r["warehouse_id"] for r in get_db().execute("SELECT DISTINCT warehouse_id FROM stock_items")}
@@ -357,8 +368,9 @@ def show(card_id):
             item["over"] = item["in_stock"] and link["issued"].get(inv, 0) > link["totals"][inv] + 1e-9
         sections[row["section"]].append(item)
     employee = db.execute("SELECT * FROM employees WHERE id = ?", (card["employee_id"],)).fetchone() if card["employee_id"] else None
+    active = request.args.get("razdel") if request.args.get("razdel") in SECTIONS else "inventory"
     return render_template("pages/card.html", card=card, sections=sections, section_labels=SECTIONS, kinds=KINDS,
-                           employee=employee, warehouses=warehouse_names)
+                           employee=employee, warehouses=warehouse_names, active=active)
 
 
 @bp.route("/<int:card_id>/poziciya", methods=["POST"])
@@ -385,7 +397,7 @@ def add_item(card_id):
                     qty, warehouse_id, _now()))
         db.commit()
         flash(f"„{name}“ е зачислено по картона.", "ok")
-    return redirect(url_for("cards.show", card_id=card_id))
+    return redirect(url_for("cards.show", card_id=card_id, razdel=section))
 
 
 @bp.route("/poziciya/<int:item_id>/vrashtane", methods=["POST"])
@@ -397,7 +409,7 @@ def return_item(item_id):
     db.execute("UPDATE card_items SET returned_on = ? WHERE id = ?", (request.form.get("returned_on") or date.today().isoformat(), item_id))
     db.commit()
     flash(f"„{row['name']}“ е върнато в склада.", "ok")
-    return redirect(url_for("cards.show", card_id=row["card_id"]))
+    return redirect(url_for("cards.show", card_id=row["card_id"], razdel=row["section"]))
 
 
 @bp.route("/poziciya/<int:item_id>/iztrivane", methods=["POST"])
@@ -409,7 +421,7 @@ def delete_item(item_id):
     db.execute("DELETE FROM card_items WHERE id = ?", (item_id,))
     db.commit()
     flash(f"„{row['name']}“ е изтрито от картона.", "ok")
-    return redirect(url_for("cards.show", card_id=row["card_id"]))
+    return redirect(url_for("cards.show", card_id=row["card_id"], razdel=row["section"]))
 
 
 @bp.route("/import", methods=["GET", "POST"])

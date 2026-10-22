@@ -38,7 +38,8 @@
                     <tr>
                         <td class="num mono">{{ loop.index }}</td>
                         <td class="mono">{{ row.inv_number }}</td>
-                        <td><a class="row-link" href="{{ url_for('stock.edit', item_id=row.id) }}">{{ row.name or '(без наименование)' }}</a>{% if row.note %} <span class="count-note">{{ row.note }}</span>{% endif %}</td>
+                        {% set row_holders = holders.get(row.inv_number, []) %}
+                        <td><button class="link-btn" type="button" data-holders="holders-{{ row.id }}" aria-expanded="false" title="При кого е">{{ row.name or '(без наименование)' }}</button>{% if row_holders %} <span class="chip chip--small" title="Картони с този номер">{{ row_holders|length }}</span>{% endif %}{% if row.note %} <span class="count-note">{{ row.note }}</span>{% endif %}</td>
                         {% if query %}<td><span class="group-tag group-tag--{{ row.value_class }}">{{ class_labels[row.value_class] }}</span></td>{% endif %}
                         <td>{{ row.unit }}</td>
                         <td class="num mono">{% if row.missing %}<span class="status-dot status-dot--warn" title="Още не е получено">0</span>{% else %}{{ row.qty }}{% endif %}</td>
@@ -50,6 +51,24 @@
                             <form method="post" action="{{ url_for('stock.delete', item_id=row.id) }}" data-ux-skip onsubmit="return confirm('Да се изтрие ли {{ row.inv_number }} {{ row.name|replace("'", "")|e }}?')"><button class="btn danger" type="submit">Изтрий</button></form>
                         </td>
                     </tr>
+                    <tr class="holders-row" id="holders-{{ row.id }}" hidden>
+                        <td></td>
+                        <td colspan="{{ 9 if query else 8 }}">
+                            {% if row_holders %}
+                            <div class="holders-title">При кого е инв. № {{ row.inv_number }} <span class="muted">(под и над прага заедно)</span></div>
+                            <ul class="holders-list">
+                                {% for h in row_holders %}
+                                <li><a class="row-link" href="{{ url_for('cards.show', card_id=h.card_id) }}">{{ h.title }}</a>
+                                    <span class="muted">{{ 'служител' if h.kind == 'personal' else 'съоръжение' }}</span>
+                                    <strong class="mono">{{ fmt_qty(h.quantity) }} {{ row.unit }}</strong>{% if h.issued_on %} <span class="muted">от {{ h.issued_on|bgdate }}</span>{% endif %}</li>
+                                {% endfor %}
+                            </ul>
+                            <div class="muted">Общо по картони: {{ fmt_qty(row_holders|sum(attribute='quantity')) }} {{ row.unit }}</div>
+                            {% else %}
+                            <span class="muted">Не е зачислено по картони. Всичко е на склад.</span>
+                            {% endif %}
+                        </td>
+                    </tr>
                 {% else %}
                     <tr><td colspan="{{ 10 if query else 9 }}">{% if query %}Няма позиции, които съвпадат с „{{ query }}“.{% else %}Няма позиции в тази група.{% endif %}</td></tr>
                 {% endfor %}
@@ -58,4 +77,15 @@
         </div>
     </section>
 </div>
+{% endblock %}
+{% block scripts %}
+<script>
+document.addEventListener("click", function (event) {
+    var button = event.target.closest("[data-holders]");
+    if (!button) return;
+    var row = document.getElementById(button.dataset.holders);
+    row.hidden = !row.hidden;
+    button.setAttribute("aria-expanded", String(!row.hidden));
+});
+</script>
 {% endblock %}
