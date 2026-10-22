@@ -103,6 +103,14 @@ def _spread(rows, amounts):
     return result
 
 
+def _order(row):
+    """Първо номерата 9-… (по номер), после азбучните групи (1000 А, 2001 Б …) и следващите по код."""
+    inv = row["inv_number"]
+    stocked = inv.startswith(("9-", "09-"))
+    digits = tuple(int(d) for d in re.findall(r"\d+", inv.split("-", 1)[1] if stocked else inv))
+    return (not stocked, digits, inv, row["id"])
+
+
 def _qty(value):
     return int(value) if float(value).is_integer() else round(value, 3)
 
@@ -126,6 +134,7 @@ def build(warehouse_id, as_of=None):
     stock = db.execute(
         "SELECT s.*, e.first_name, e.last_name FROM stock_items s LEFT JOIN employees e ON e.id = s.mol_employee_id"
         " WHERE s.warehouse_id = ? ORDER BY s.id", (warehouse_id,)).fetchall()
+    stock.sort(key=_order)
     by_inv = defaultdict(list)
     for row in stock:
         by_inv[row["inv_number"]].append(row)
