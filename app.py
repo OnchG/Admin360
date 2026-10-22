@@ -8,9 +8,15 @@ from datetime import date
 from flask import Flask, abort, flash, redirect, render_template, request, url_for
 
 import config
+import db
+import personnel
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = "smeni-tozi-kluch"  # сменете с произволен низ преди реална употреба
+db.init_app(app)
+app.register_blueprint(personnel.bp)
+with app.app_context():
+    personnel.init_db()
 
 # Страници, които още нямат съдържание: виж PLACEHOLDERS в config.py.
 PLACEHOLDERS = config.PLACEHOLDERS

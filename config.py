@@ -29,7 +29,7 @@ MENU = [
         _page("plashtania", "Плащания", "coins"),
     ]},
     {"label": "Персонал", "icon": "users", "items": [
-        _page("sluzhiteli", "Служители", "users"),
+        {"key": "sluzhiteli", "label": "Служители", "icon": "users", "endpoint": "personnel.employees"},
         _page("kartoni", "Лични картони", "card"),
     ]},
     {"label": "Склад", "icon": "box", "items": [

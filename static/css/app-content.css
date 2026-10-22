@@ -70,3 +70,22 @@
     .page{padding:14px}
     .form-grid{grid-template-columns:1fr}
 }
+
+/* персонал: подредба, групи по длъжност, действия по ред */
+.head-actions{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:8px}
+.count-note{margin-left:8px;font-size:12px;font-weight:500;color:var(--c-muted)}
+.seg-toggle{display:inline-flex}
+.seg-toggle .btn{border-radius:0!important}
+.seg-toggle .btn:first-child{border-radius:var(--r-sm) 0 0 var(--r-sm)!important}
+.seg-toggle .btn:last-child{border-radius:0 var(--r-sm) var(--r-sm) 0!important;margin-left:-1px}
+.seg-toggle .btn.is-active{background:var(--c-surface-3)!important;box-shadow:inset 0 -2px 0 var(--c-accent)!important}
+.data-table .group-row td{padding:14px 10px 6px;background:none!important;color:var(--c-accent);font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;border-bottom:1px solid var(--c-line-2)}
+.row-link{color:inherit;text-decoration:none}
+.row-link:hover{color:var(--c-accent)}
+.row-actions{display:flex;justify-content:flex-end;gap:6px;white-space:nowrap}
+.row-actions .btn{min-height:28px;padding:0 10px;font-size:12px}
+.form-grid--3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.form-hint{margin:12px 0 0;font-size:12px;color:var(--c-muted)}
+.form-hint--bad{color:#fca5a5}
+.form-actions__left{margin-right:auto}
+@media(max-width:700px){.form-grid--3{grid-template-columns:1fr}}
