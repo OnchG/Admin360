@@ -36,5 +36,21 @@
             </table>
         </div>
     </section>
+    {% if awaiting %}
+    <section class="dash-card">
+        <div class="dash-card__head"><h2>Чакат наличностите на склада <span class="count-note">{{ awaiting|length }}</span></h2></div>
+        <p class="form-hint">Тези позиции се водят в склад, чиито наличности още не са заредени. Не са разминаване: ще се свържат сами, щом складът бъде зареден.</p>
+        <div class="table-wrap">
+            <table class="data-table">
+                <thead><tr><th>Склад</th><th>Инв. номер</th><th>Наименование по картона</th><th class="num">Количество</th><th>Картон</th></tr></thead>
+                <tbody>
+                {% for row in awaiting %}
+                    <tr><td>{{ row.warehouse }}</td><td class="mono">{{ row.inv_number or '—' }}</td><td>{{ row.name }}</td><td class="num mono">{{ '%g'|format(row.quantity) }}</td><td><a class="row-link" href="{{ url_for('cards.show', card_id=row.card_id) }}">{{ row.title }}</a></td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+    {% endif %}
 </div>
 {% endblock %}

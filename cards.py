@@ -13,6 +13,7 @@
 """
 import json
 import os
+import re
 from collections import defaultdict
 from datetime import date, datetime, timedelta
 
@@ -42,6 +43,7 @@ CREATE TABLE IF NOT EXISTS card_items (
     issued_on TEXT,
     quantity REAL NOT NULL DEFAULT 0,
     returned_on TEXT,
+    warehouse_id INTEGER REFERENCES warehouses(id),
     created_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS card_items_inv ON card_items (inv_number);
@@ -51,6 +53,18 @@ KINDS = {"personal": "Лични картони", "facility": "Картони п
 SECTIONS = {"inventory": "Инвентар", "ppe": "Лични предпазни средства", "fixed": "Дълготрайни активи"}
 
 SEED_FILE = "kartoni_krichim.json"
+# Картони по съоръжения, подадени след личните (зареждат се веднъж, като личните).
+SEED_FACILITIES = "kartoni_saorazhenia.json"
+# Корекции по първоначалния импорт (указания на потребителя от 22.10.2026), за бази, заредени преди тях.
+SEED_FIX = "kartoni_krichim_fix1"
+# Стари или бракувани номера, които не се зачисляват по картони.
+IGNORED_INV = {"9-180049", "9-130107", "9-180019", "9-310015", "9-110075"}
+# Взетото „на ЦК“ от Димитър Костадинов се води в склад Цанков камък.
+TSANKOV_KAMAK = 2
+DIMITAR_TSK_INV = ("9-160109", "9-050023", "9-050036", "9-170041")
+NOT_DOCUMENTED = ("Компютър: ThinkCentre neo 50 s", "Клавиатура: Lenovo SK 8823", "Мишка: Lenovo Wireless L300")
+# Склад на позиция по картон: собственият ѝ, ако е зададен, иначе складът на картона.
+EFF = "COALESCE(ci.warehouse_id, c.warehouse_id)"
 SEED_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "seed")
 
 
@@ -61,11 +75,29 @@ def _now():
 def init_db():
     db = get_db()
     db.executescript(SCHEMA)
+    if "warehouse_id" not in {r["name"] for r in db.execute("PRAGMA table_info(card_items)")}:
+        db.execute("ALTER TABLE card_items ADD COLUMN warehouse_id INTEGER REFERENCES warehouses(id)")
     if not db.execute("SELECT 1 FROM stock_seeds WHERE filename = ?", (SEED_FILE,)).fetchone():
         with open(os.path.join(SEED_DIR, SEED_FILE), encoding="utf-8") as fh:
             for card in json.load(fh):
                 save_card(card["owner"], card["kind"], card["items"])
         db.execute("INSERT INTO stock_seeds (filename) VALUES (?)", (SEED_FILE,))
+    if not db.execute("SELECT 1 FROM stock_seeds WHERE filename = ?", (SEED_FACILITIES,)).fetchone():
+        with open(os.path.join(SEED_DIR, SEED_FACILITIES), encoding="utf-8") as fh:
+            for card in json.load(fh):
+                save_card(card["owner"], card["kind"], card["items"])
+        db.execute("INSERT INTO stock_seeds (filename) VALUES (?)", (SEED_FACILITIES,))
+    if not db.execute("SELECT 1 FROM stock_seeds WHERE filename = ?", (SEED_FIX,)).fetchone():
+        marks = ",".join("?" * len(IGNORED_INV))
+        db.execute(f"DELETE FROM card_items WHERE section = 'inventory' AND inv_number IN ({marks})", tuple(IGNORED_INV))
+        marks = ",".join("?" * len(NOT_DOCUMENTED))
+        db.execute(f"DELETE FROM card_items WHERE inv_number = '' AND name IN ({marks})", NOT_DOCUMENTED)
+        marks = ",".join("?" * len(DIMITAR_TSK_INV))
+        db.execute(f"UPDATE card_items SET warehouse_id = ? WHERE inv_number IN ({marks}) AND card_id IN"
+                   " (SELECT c.id FROM cards c JOIN employees e ON e.id = c.employee_id"
+                   "  WHERE e.first_name = 'Димитър' AND e.last_name = 'Костадинов')",
+                   (TSANKOV_KAMAK, *DIMITAR_TSK_INV))
+        db.execute("INSERT INTO stock_seeds (filename) VALUES (?)", (SEED_FIX,))
     db.commit()
 
 
@@ -75,7 +107,7 @@ def issued_by_inv(warehouse_id):
     """Инв. номер -> зачислено количество по всички картони на склада (невърнатото)."""
     rows = get_db().execute(
         "SELECT ci.inv_number, SUM(ci.quantity) AS q FROM card_items ci JOIN cards c ON c.id = ci.card_id"
-        " WHERE c.warehouse_id = ? AND ci.section = 'inventory' AND ci.returned_on IS NULL AND ci.inv_number != ''"
+        f" WHERE {EFF} = ? AND ci.section = 'inventory' AND ci.returned_on IS NULL AND ci.inv_number != ''"
         " GROUP BY ci.inv_number", (warehouse_id,)).fetchall()
     return {r["inv_number"]: r["q"] for r in rows}
 
@@ -112,20 +144,48 @@ def holders(warehouse_id, inv_number):
     """Кой държи позиции с този инв. номер: [(картон, позиция по картона)]."""
     return get_db().execute(
         "SELECT c.id AS card_id, c.title, c.kind, ci.name, ci.quantity, ci.issued_on FROM card_items ci"
-        " JOIN cards c ON c.id = ci.card_id WHERE c.warehouse_id = ? AND ci.inv_number = ? AND ci.section = 'inventory'"
+        f" JOIN cards c ON c.id = ci.card_id WHERE {EFF} = ? AND ci.inv_number = ? AND ci.section = 'inventory'"
         " AND ci.returned_on IS NULL ORDER BY c.title", (warehouse_id, inv_number)).fetchall()
 
 
+def stocked_warehouses():
+    """Складове, за които вече има заредени наличности."""
+    return {r["warehouse_id"] for r in get_db().execute("SELECT DISTINCT warehouse_id FROM stock_items")}
+
+
 def mismatches(warehouse_id=1):
-    """Инв. номера, по които картоните надвишават общото в склада, и такива, които липсват в склада."""
+    """Инв. номера, по които картоните надвишават общото в склада, и такива, които липсват в склада.
+
+    Позиции от склад без заредени наличности не са разминаване: те се свързват, когато складът бъде зареден.
+    """
     totals, issued = stock_totals(warehouse_id), issued_by_inv(warehouse_id)
     over = [(inv, totals[inv], q) for inv, q in issued.items() if inv in totals and q > totals[inv] + 1e-9]
     missing = get_db().execute(
         "SELECT c.id AS card_id, c.title, ci.* FROM card_items ci JOIN cards c ON c.id = ci.card_id"
-        " WHERE c.warehouse_id = ? AND ci.section = 'inventory' AND ci.returned_on IS NULL ORDER BY ci.inv_number, c.title",
+        f" WHERE {EFF} = ? AND ci.section = 'inventory' AND ci.returned_on IS NULL ORDER BY ci.inv_number, c.title",
         (warehouse_id,)).fetchall()
     missing = [r for r in missing if r["inv_number"] not in totals]
     return sorted(over), missing
+
+
+def all_mismatches():
+    """mismatches() за всички складове със заредени наличности."""
+    over, missing = [], []
+    for warehouse_id in sorted(stocked_warehouses()):
+        o, m = mismatches(warehouse_id)
+        over += [(warehouse_id, *row) for row in o]
+        missing += m
+    return over, missing
+
+
+def awaiting_stock():
+    """Позиции по картони, свързани със склад, чиито наличности още не са заредени."""
+    stocked = stocked_warehouses()
+    rows = get_db().execute(
+        f"SELECT c.id AS card_id, c.title, w.id AS wid, w.name AS warehouse, ci.* FROM card_items ci"
+        f" JOIN cards c ON c.id = ci.card_id JOIN warehouses w ON w.id = {EFF}"
+        " WHERE ci.section = 'inventory' AND ci.returned_on IS NULL ORDER BY w.id, c.title, ci.inv_number").fetchall()
+    return [r for r in rows if r["wid"] not in stocked]
 
 
 def card_items_for_employee(employee_id):
@@ -162,19 +222,27 @@ def save_card(owner, kind, items, warehouse_id=1):
         card_id = db.execute("INSERT INTO cards (kind, employee_id, title, warehouse_id, created_at) VALUES (?, ?, ?, ?, ?)",
                              (kind, employee_id, title, warehouse_id, _now())).lastrowid
     for item in items:
+        if item["section"] == "inventory" and item["inv"] in IGNORED_INV:
+            continue
         section = item["section"]
         if section == "inventory" and item["inv"].startswith("09-"):
             section = "ppe"  # 09-… е номерация на ЛПС, дори когато е записано сред инвентара
-        db.execute("INSERT INTO card_items (card_id, section, inv_number, name, issued_on, quantity, created_at)"
-                   " VALUES (?, ?, ?, ?, ?, ?, ?)",
-                   (card_id, section, item["inv"], item["name"], item["date"], item["qty"] or 0, _now()))
+        db.execute("INSERT INTO card_items (card_id, section, inv_number, name, issued_on, quantity, warehouse_id, created_at)"
+                   " VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                   (card_id, section, item["inv"], item["name"], item["date"], item["qty"] or 0, item.get("warehouse"), _now()))
     return card_id, None
 
 
 def parse_xls(content):
-    """Втори лист на .xls картон -> (име, [позиции])."""
+    """Втори лист на .xls картон -> (име, [позиции]).
+
+    Картоните по съоръжения са на първия лист и са по-кратки: инв. номер, наименование, количество.
+    """
     import xlrd
-    sheet = xlrd.open_workbook(file_contents=content).sheet_by_index(1)
+    book = xlrd.open_workbook(file_contents=content)
+    if book.nsheets < 2 or not book.sheet_by_index(1).nrows:
+        return _parse_short(book.sheet_by_index(0))
+    sheet = book.sheet_by_index(1)
     owner = next(str(v).strip() for v in sheet.row_values(2) if str(v).strip())
     section, items = "inventory", []
     for r in range(6, sheet.nrows):
@@ -190,6 +258,22 @@ def parse_xls(content):
             continue
         qty = sheet.cell_value(r, 3)
         items.append({"section": section, "inv": inv, "name": name, "date": _cell_date(sheet.cell_value(r, 2)),
+                      "qty": float(qty) if qty not in ("", None) else 0})
+    return " ".join(owner.split()), items
+
+
+def _parse_short(sheet):
+    """Кратък картон: заглавие на 4-ия ред, позициите от 8-ия (инв. номер, наименование, количество)."""
+    owner = next(str(v).strip() for v in sheet.row_values(3) if str(v).strip())
+    items = []
+    for r in range(7, sheet.nrows):
+        inv, name = _cell_text(sheet.cell_value(r, 0)), " ".join(str(sheet.cell_value(r, 1)).split())
+        if not name:
+            continue  # празен ред или междинно заглавие
+        qty = sheet.cell_value(r, 2)
+        # номерата извън 9-…/09-… са дълготрайни активи (собствена номерация, напр. „64 / 6“)
+        section = "inventory" if re.match(r"^0?9-", inv) else "fixed"
+        items.append({"section": section, "inv": inv, "name": name, "date": None,
                       "qty": float(qty) if qty not in ("", None) else 0})
     return " ".join(owner.split()), items
 
@@ -231,36 +315,50 @@ def index():
         " FROM cards c LEFT JOIN employees e ON e.id = c.employee_id LEFT JOIN card_items ci ON ci.card_id = c.id"
         " WHERE c.kind = ? GROUP BY c.id ORDER BY c.title", (kind,)).fetchall()
     counts = {r["kind"]: r["n"] for r in get_db().execute("SELECT kind, COUNT(*) AS n FROM cards GROUP BY kind")}
-    over, missing = mismatches()
+    over, missing = all_mismatches()
     return render_template("pages/cards.html", rows=rows, kind=kind, kinds=KINDS, counts=counts,
                            problem_count=len(over) + len(missing))
+
+
+def _stock_link(warehouse_id):
+    """Данни за свързване на позиции по картони с наличностите в един склад."""
+    db = get_db()
+    totals, issued = stock_totals(warehouse_id), issued_by_inv(warehouse_id)
+    stock_rows = db.execute("SELECT id, inv_number, name, value_class, quantity FROM stock_items WHERE warehouse_id = ?",
+                            (warehouse_id,)).fetchall()
+    allocated = allocate(stock_rows, issued)
+    stock_names = defaultdict(list)  # позициите в склада, от които се покрива зачисленото
+    for r in stock_rows:
+        if allocated.get(r["id"]):
+            stock_names[r["inv_number"]].append(r)
+    return {"totals": totals, "issued": issued, "names": stock_names, "loaded": bool(stock_rows)}
 
 
 @bp.route("/<int:card_id>")
 def show(card_id):
     card = _card(card_id)
     db = get_db()
-    totals, issued = stock_totals(card["warehouse_id"]), issued_by_inv(card["warehouse_id"])
-    stock_rows = db.execute("SELECT id, inv_number, name, value_class, quantity FROM stock_items WHERE warehouse_id = ?",
-                            (card["warehouse_id"],)).fetchall()
-    allocated = allocate(stock_rows, issued)
-    stock_names = defaultdict(list)  # позициите в склада, от които се покрива зачисленото
-    for r in stock_rows:
-        if allocated.get(r["id"]):
-            stock_names[r["inv_number"]].append(r)
+    warehouse_names = {r["id"]: r["name"] for r in db.execute("SELECT id, name FROM warehouses")}
+    links = {}
     sections = {key: [] for key in SECTIONS}
     for row in db.execute("SELECT * FROM card_items WHERE card_id = ? ORDER BY returned_on IS NOT NULL, inv_number, id",
                           (card_id,)):
         item = dict(row)
         item["issued_on"], item["returned_on"] = _date(row["issued_on"]), _date(row["returned_on"])
         if row["section"] == "inventory":
-            item["in_stock"] = row["inv_number"] in totals
-            item["stock"] = stock_names.get(row["inv_number"], [])
-            item["over"] = item["in_stock"] and issued.get(row["inv_number"], 0) > totals[row["inv_number"]] + 1e-9
+            wid = row["warehouse_id"] or card["warehouse_id"]
+            link = links.get(wid) or links.setdefault(wid, _stock_link(wid))
+            inv = row["inv_number"]
+            item["warehouse"] = wid
+            item["other_warehouse"] = warehouse_names[wid] if wid != card["warehouse_id"] else None
+            item["awaiting"] = not link["loaded"]
+            item["in_stock"] = inv in link["totals"]
+            item["stock"] = link["names"].get(inv, [])
+            item["over"] = item["in_stock"] and link["issued"].get(inv, 0) > link["totals"][inv] + 1e-9
         sections[row["section"]].append(item)
     employee = db.execute("SELECT * FROM employees WHERE id = ?", (card["employee_id"],)).fetchone() if card["employee_id"] else None
     return render_template("pages/card.html", card=card, sections=sections, section_labels=SECTIONS, kinds=KINDS,
-                           employee=employee)
+                           employee=employee, warehouses=warehouse_names)
 
 
 @bp.route("/<int:card_id>/poziciya", methods=["POST"])
@@ -277,10 +375,14 @@ def add_item(card_id):
         flash("Попълнете наименование и количество (положително число).", "bad")
     else:
         db = get_db()
-        db.execute("INSERT INTO card_items (card_id, section, inv_number, name, issued_on, quantity, created_at)"
-                   " VALUES (?, ?, ?, ?, ?, ?, ?)",
+        card = _card(card_id)
+        warehouse_id = form.get("warehouse_id", type=int)
+        if section != "inventory" or warehouse_id == card["warehouse_id"]:
+            warehouse_id = None  # по подразбиране – складът на картона
+        db.execute("INSERT INTO card_items (card_id, section, inv_number, name, issued_on, quantity, warehouse_id, created_at)"
+                   " VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                    (card_id, section, form.get("inv_number", "").strip(), name, form.get("issued_on") or date.today().isoformat(),
-                    qty, _now()))
+                    qty, warehouse_id, _now()))
         db.commit()
         flash(f"„{name}“ е зачислено по картона.", "ok")
     return redirect(url_for("cards.show", card_id=card_id))
@@ -331,9 +433,10 @@ def import_page():
 
 @bp.route("/razminavania")
 def problems():
-    over, missing = mismatches()
+    over, missing = all_mismatches()
     db = get_db()
-    names = {r["inv_number"]: r["name"] for r in db.execute("SELECT inv_number, name FROM stock_items WHERE warehouse_id = 1")}
-    over_rows = [{"inv": inv, "name": names.get(inv, ""), "total": total, "issued": q, "holders": holders(1, inv)}
-                 for inv, total, q in over]
-    return render_template("pages/cards_problems.html", over=over_rows, missing=missing)
+    names = {(r["warehouse_id"], r["inv_number"]): r["name"]
+             for r in db.execute("SELECT warehouse_id, inv_number, name FROM stock_items")}
+    over_rows = [{"inv": inv, "name": names.get((wid, inv), ""), "total": total, "issued": q, "holders": holders(wid, inv)}
+                 for wid, inv, total, q in over]
+    return render_template("pages/cards_problems.html", over=over_rows, missing=missing, awaiting=awaiting_stock())

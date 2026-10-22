@@ -1,0 +1,93 @@
+{% extends "layouts/app_shell.html" %}
+{% set wh_name = (warehouses|selectattr('id', 'equalto', warehouse_id)|first).name %}
+{% set sidebar_active = 'avariyen_rezerv' %}
+{% set header_title = 'Авариен резерв' %}
+{% set header_subtitle = 'Склад ' ~ wh_name %}
+{% set header_breadcrumbs = [{'label': 'Начало', 'url': url_for('dashboard')}, {'label': 'Склад'}, {'label': 'Авариен резерв'}] %}
+{% set status_class = {'ok': 'ok', 'short': 'warn', 'missing': 'bad', 'other': 'none'} %}
+{% set linked_total = counts.ok + counts.short %}
+{% block content %}
+<div class="page">
+    <section class="kpi-grid">
+        <article class="kpi-card"><span class="kpi-label">Позиции в резерва</span><strong class="kpi-value">{{ items|length }}</strong><span class="kpi-sub">в {{ categories }} вида</span></article>
+        <article class="kpi-card"><span class="kpi-label">Стойност по описа</span><strong class="kpi-value">{{ total_value|bgnum }} лв</strong><span class="kpi-sub">сбор от колона „Стойност“</span></article>
+        <article class="kpi-card"><span class="kpi-label">Осигурено от склада</span><strong class="kpi-value">{{ counts.ok }} <small>от {{ linked_total + counts.missing }}</small></strong><span class="kpi-sub">позиции с инвентарен номер 9-…</span></article>
+        <article class="kpi-card"><span class="kpi-label">Чакат свързване</span><strong class="kpi-value">{{ counts.other }}</strong><span class="kpi-sub">номера по други списъци (SAP, ЛПС)</span></article>
+    </section>
+
+    <section class="dash-card">
+        <div class="dash-card__head">
+            <h2>Състояние на резерва <span class="count-note">спрямо наличното на склад {{ wh_name }}, без зачисленото по картони</span></h2>
+            {% if warehouses|length > 1 %}
+            <div class="seg-toggle" role="group" aria-label="Склад">
+                {% for w in warehouses %}<a class="btn{% if w.id == warehouse_id %} is-active{% endif %}" href="{{ url_for('reserve.index', sklad=w.id) }}">{{ w.name }} ({{ reserve_counts.get(w.id, 0) }})</a>{% endfor %}
+            </div>
+            {% endif %}
+        </div>
+        {% if items %}
+        <div class="reserve-bar" role="img" aria-label="{% for key, label in statuses.items() %}{{ label }}: {{ counts[key] }}{% if not loop.last %}, {% endif %}{% endfor %}">
+            {% for key, label in statuses.items() if counts[key] %}
+            <a class="reserve-bar__seg reserve-bar__seg--{{ status_class[key] }}" style="flex-grow:{{ counts[key] }}" href="{{ url_for('reserve.index', sklad=warehouse_id, sastoyanie=key) }}" title="{{ label }}: {{ counts[key] }} позиции"></a>
+            {% endfor %}
+        </div>
+        <div class="reserve-legend">
+            {% for key, label in statuses.items() %}
+            <a class="reserve-legend__item{% if status == key %} is-active{% endif %}" href="{{ url_for('reserve.index', sklad=warehouse_id, sastoyanie=None if status == key else key, q=query or None) }}">
+                <span class="status-dot status-dot--{{ status_class[key] }}">{{ label }}</span> <strong class="mono">{{ counts[key] }}</strong>
+            </a>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </section>
+
+    <section class="dash-card">
+        <div class="dash-card__head">
+            <h2>Опис {% if status %}· {{ statuses[status]|lower }}{% endif %} <span class="count-note">{{ shown }} позиции</span></h2>
+            <div class="head-actions"><a class="btn primary" href="{{ url_for('reserve.new', sklad=warehouse_id) }}">Нова позиция</a></div>
+        </div>
+        <form class="stock-search" method="get">
+            <input type="hidden" name="sklad" value="{{ warehouse_id }}">{% if status %}<input type="hidden" name="sastoyanie" value="{{ status }}">{% endif %}
+            <input type="search" name="q" value="{{ query }}" placeholder="Търсене по вид, наименование или номер">
+            <button class="btn" type="submit">Търси</button>
+            {% if query or status %}<a class="btn" href="{{ url_for('reserve.index', sklad=warehouse_id) }}">Изчисти</a>{% endif %}
+        </form>
+        <div class="table-wrap">
+            <table class="data-table reserve-table">
+                <thead><tr><th>Номер</th><th>Наименование</th><th class="num">Резерв</th><th>Налично на склад</th><th>Състояние</th><th class="num">Стойност, лв</th><th></th></tr></thead>
+                {% for group in groups %}
+                <tbody>
+                    <tr class="reserve-group"><th colspan="7">{{ group.category }} <span class="count-note">{{ group['items']|length }}</span></th></tr>
+                    {% for item in group['items'] %}
+                    <tr>
+                        <td class="mono reserve-numbers">
+                            {% for n in item.stock_numbers %}{% if n in item.linked %}<a class="row-link" href="{{ url_for('stock.items', sklad=warehouse_id, q=n) }}">{{ n }}</a>{% else %}{{ n }}{% endif %}<br>{% endfor %}
+                            {% for n in item.other_numbers %}<span class="muted">{{ n }}</span><br>{% endfor %}
+                            {% if not item.numbers %}<span class="muted">—</span>{% endif %}
+                        </td>
+                        <td>{{ item.name }}
+                            {% if item.stock_rows %}<div class="reserve-sub">в склада: {% for s in item.stock_rows %}{{ s.name }}{% if not loop.last %}; {% endif %}{% endfor %}</div>{% endif %}
+                            {% if item.note %}<div class="reserve-sub">{{ item.note }}</div>{% endif %}
+                        </td>
+                        <td class="num mono nowrap">{{ item.qty_text }} {{ item.unit }}</td>
+                        <td class="reserve-cover">
+                            {% if item.linked %}
+                            <div class="meter meter--{{ status_class[item.status] }}" title="Налично {{ item.available_text }} от нужни {{ item.need_text }} {{ item.unit }}"><span style="width:{{ (item.ratio * 100)|round(1) }}%"></span></div>
+                            <span class="mono nowrap">{{ item.available_text }} / {{ item.need_text }} {{ item.unit }}</span>
+                            {% if item.shared %}<div class="reserve-sub">нуждата е обща с други редове със същия номер</div>{% endif %}
+                            {% elif item.status == 'missing' %}<span class="muted">номерът го няма в склада</span>
+                            {% else %}<span class="muted">ще се свърже на следващ етап</span>{% endif %}
+                        </td>
+                        <td class="nowrap"><span class="status-dot status-dot--{{ status_class[item.status] }}">{% if item.status == 'short' %}липсват {{ item.short_text }}{% else %}{{ statuses[item.status] }}{% endif %}</span></td>
+                        <td class="num mono">{{ item.value|bgnum if item.value is not none else '—' }}</td>
+                        <td class="row-actions"><a class="btn" href="{{ url_for('reserve.edit', item_id=item.id) }}">Редакция</a></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                {% else %}
+                <tbody><tr><td colspan="7" class="muted">Няма позиции.</td></tr></tbody>
+                {% endfor %}
+            </table>
+        </div>
+    </section>
+</div>
+{% endblock %}

@@ -12,6 +12,7 @@ import db
 import personnel
 import cards
 import settings
+import reserve
 import stock
 
 app = Flask(__name__)
@@ -21,11 +22,13 @@ app.register_blueprint(personnel.bp)
 app.register_blueprint(settings.bp)
 app.register_blueprint(stock.bp)
 app.register_blueprint(cards.bp)
+app.register_blueprint(reserve.bp)
 with app.app_context():
     personnel.init_db()
     settings.init_db()
     stock.init_db()
     cards.init_db()
+    reserve.init_db()
 
 # Страници, които още нямат съдържание: виж PLACEHOLDERS в config.py.
 PLACEHOLDERS = config.PLACEHOLDERS

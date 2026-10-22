@@ -34,6 +34,7 @@ MENU = [
     ]},
     {"label": "Склад", "icon": "box", "items": [
         {"key": "nalichnosti", "label": "Наличности", "icon": "box", "endpoint": "stock.items"},
+        {"key": "avariyen_rezerv", "label": "Авариен резерв", "icon": "shield", "endpoint": "reserve.index"},
         _page("dvizhenia", "Движения", "swap"),
         _page("inventarizacia", "Инвентаризация", "check"),
     ]},
