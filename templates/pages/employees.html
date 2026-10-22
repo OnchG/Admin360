@@ -1,0 +1,46 @@
+{% extends "layouts/app_shell.html" %}
+{% set sidebar_active = 'sluzhiteli' %}
+{% set header_title = 'Служители' %}
+{% set header_subtitle = 'Личен състав' %}
+{% set header_breadcrumbs = [{'label': 'Начало', 'url': url_for('dashboard')}, {'label': 'Персонал'}, {'label': 'Служители'}] %}
+{% block content %}
+<div class="page">
+    <section class="dash-card">
+        <div class="dash-card__head">
+            <h2>Личен състав <span class="count-note">{{ rows|length }} служители</span></h2>
+            <div class="head-actions">
+                <div class="seg-toggle" role="group" aria-label="Подредба">
+                    <a class="btn{% if sort == 'rank' %} is-active{% endif %}" href="{{ url_for('personnel.employees') }}">По длъжност</a>
+                    <a class="btn{% if sort == 'az' %} is-active{% endif %}" href="{{ url_for('personnel.employees', sort='az') }}">По азбучен ред</a>
+                </div>
+                <a class="btn" href="{{ url_for('personnel.former') }}">Бивши служители ({{ former_count }})</a>
+                <a class="btn primary" href="{{ url_for('personnel.create') }}">Нов служител</a>
+            </div>
+        </div>
+        <div class="table-wrap">
+            <table class="data-table">
+                <thead><tr><th class="num">№</th><th>Име, презиме, фамилия</th><th>Длъжност</th><th>Постъпил</th><th></th></tr></thead>
+                <tbody>
+                {% for row in rows %}
+                    {% if sort == 'rank' and (loop.first or row.group != loop.previtem.group) %}
+                        <tr class="group-row"><td colspan="5">{{ row.group }}</td></tr>
+                    {% endif %}
+                    <tr>
+                        <td class="num mono">{{ loop.index }}</td>
+                        <td><a class="row-link" href="{{ url_for('personnel.edit', employee_id=row.id) }}">{{ row.full_name }}</a></td>
+                        <td>{{ row.position }}</td>
+                        <td class="mono">{{ row.hired_on|bgdate }}</td>
+                        <td class="row-actions">
+                            <a class="btn" href="{{ url_for('personnel.edit', employee_id=row.id) }}">Редактирай</a>
+                            <a class="btn danger" href="{{ url_for('personnel.remove', employee_id=row.id) }}">Премахни</a>
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr><td colspan="5">Няма служители.</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+</div>
+{% endblock %}

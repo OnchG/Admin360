@@ -1,0 +1,38 @@
+{% extends "layouts/app_shell.html" %}
+{% set sidebar_active = 'sluzhiteli' %}
+{% set header_title = 'Бивши служители' %}
+{% set header_subtitle = 'История на личния състав' %}
+{% set header_breadcrumbs = [{'label': 'Начало', 'url': url_for('dashboard')}, {'label': 'Персонал'}, {'label': 'Служители', 'url': url_for('personnel.employees')}, {'label': 'Бивши служители'}] %}
+{% block content %}
+<div class="page">
+    <section class="dash-card">
+        <div class="dash-card__head">
+            <h2>Бивши служители <span class="count-note">{{ rows|length }}</span></h2>
+            <a class="btn" href="{{ url_for('personnel.employees') }}">Към личния състав</a>
+        </div>
+        <div class="table-wrap">
+            <table class="data-table">
+                <thead><tr><th>Име, презиме, фамилия</th><th>Длъжност</th><th>Постъпил</th><th>Напуснал</th><th>Причина</th><th></th></tr></thead>
+                <tbody>
+                {% for row in rows %}
+                    <tr>
+                        <td><a class="row-link" href="{{ url_for('personnel.edit', employee_id=row.id) }}">{{ row.full_name }}</a></td>
+                        <td>{{ row.position }}</td>
+                        <td class="mono">{{ row.hired_on|bgdate }}</td>
+                        <td class="mono">{{ row.left_on|bgdate }}</td>
+                        <td>{{ row.leave_reason }}</td>
+                        <td class="row-actions">
+                            <form method="post" action="{{ url_for('personnel.restore', employee_id=row.id) }}" data-ux-skip>
+                                <button class="btn" type="submit">Върни в състава</button>
+                            </form>
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr><td colspan="6">Няма бивши служители.</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+</div>
+{% endblock %}

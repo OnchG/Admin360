@@ -1,0 +1,25 @@
+{% extends "layouts/app_shell.html" %}
+{% set sidebar_active = 'sluzhiteli' %}
+{% set header_title = 'Премахване на служител' %}
+{% set header_subtitle = employee.full_name %}
+{% set header_breadcrumbs = [{'label': 'Начало', 'url': url_for('dashboard')}, {'label': 'Персонал'}, {'label': 'Служители', 'url': url_for('personnel.employees')}, {'label': 'Премахване'}] %}
+{% from "components/date_input.html" import date_input %}
+{% block content %}
+<div class="page page--narrow">
+    <form class="dash-card form-card" method="post">
+        <div class="dash-card__head"><h2>{{ employee.full_name }}</h2><span class="count-note">{{ employee.position }}</span></div>
+        <p class="form-hint">Служителят няма да бъде изтрит: минава в „Бивши служители“ заедно с цялата си история и може да бъде върнат.</p>
+        {% if card_items %}
+        <p class="form-hint form-hint--bad">По картона му има зачислено имущество ({{ card_items|length }} позиции). Преди напускане всяка позиция трябва да се прехвърли на друг служител или да се бракува.</p>
+        {% endif %}
+        <div class="form-grid">
+            <div class="field"><span>Дата на напускане</span>{{ date_input('left_on', today, required=true) }}</div>
+            <label class="field field--wide"><span>Причина (по желание)</span><input name="reason" placeholder="Например: пенсиониране, напускане по собствено желание"></label>
+        </div>
+        <div class="form-actions">
+            <a class="btn" href="{{ url_for('personnel.employees') }}">Отказ</a>
+            <button class="btn danger" type="submit"{% if card_items %} disabled{% endif %}>Премахни от състава</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

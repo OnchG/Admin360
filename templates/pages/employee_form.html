@@ -1,0 +1,51 @@
+{% extends "layouts/app_shell.html" %}
+{% set is_new = not employee.id %}
+{% set title = 'Нов служител' if is_new else employee.full_name %}
+{% set sidebar_active = 'sluzhiteli' %}
+{% set header_title = title %}
+{% set header_subtitle = 'Персонал' %}
+{% set header_breadcrumbs = [{'label': 'Начало', 'url': url_for('dashboard')}, {'label': 'Персонал'}, {'label': 'Служители', 'url': url_for('personnel.employees')}, {'label': title}] %}
+{% from "components/date_input.html" import date_input %}
+{% block content %}
+<div class="page page--narrow">
+    <form class="dash-card form-card" method="post">
+        <div class="dash-card__head">
+            <h2>{{ 'Нов служител' if is_new else 'Данни на служителя' }}</h2>
+            {% if employee.left_on %}<span class="status-dot status-dot--warn">Напуснал на {{ employee.left_on|bgdate }}</span>{% endif %}
+        </div>
+        <div class="form-grid form-grid--3">
+            <label class="field"><span>Име</span><input name="first_name" value="{{ employee.first_name or '' }}" required autofocus></label>
+            <label class="field"><span>Презиме</span><input name="middle_name" value="{{ employee.middle_name or '' }}"></label>
+            <label class="field"><span>Фамилия</span><input name="last_name" value="{{ employee.last_name or '' }}" required></label>
+            <label class="field field--wide"><span>Длъжност</span>
+                <input name="position" value="{{ employee.position or '' }}" list="positions" placeholder="Например: Инженер, ХЕС" required>
+                <datalist id="positions">{% for p in positions %}<option value="{{ p }}">{% endfor %}</datalist>
+            </label>
+            <div class="field"><span>Дата на постъпване</span>{{ date_input('hired_on', (employee.hired_on or '')|string) }}</div>
+            <label class="field field--wide"><span>Бележка</span><textarea name="note" rows="3">{{ employee.note or '' }}</textarea></label>
+        </div>
+        <p class="form-hint">Имената се записват с главна първа буква, длъжността с главна първа буква (съкращенията като ХЕС и ПП остават с главни).</p>
+        <div class="form-actions">
+            {% if not is_new and not employee.left_on %}<a class="btn danger form-actions__left" href="{{ url_for('personnel.remove', employee_id=employee.id) }}">Премахни</a>{% endif %}
+            <a class="btn" href="{{ url_for('personnel.employees') }}">Отказ</a>
+            <button class="btn primary" type="submit">Запази</button>
+        </div>
+    </form>
+
+    {% if events %}
+    <section class="dash-card">
+        <div class="dash-card__head"><h2>История</h2></div>
+        <div class="table-wrap">
+            <table class="data-table">
+                <thead><tr><th>Кога</th><th>Събитие</th><th>Подробности</th></tr></thead>
+                <tbody>
+                {% for e in events %}
+                    <tr><td class="mono">{{ e.at.strftime('%d.%m.%Y %H:%M') }}</td><td>{{ e.label }}</td><td>{{ e.details }}</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+    {% endif %}
+</div>
+{% endblock %}
