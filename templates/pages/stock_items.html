@@ -42,7 +42,10 @@
                         <td>{{ row.unit }}</td>
                         <td class="num mono">{% if row.missing %}<span class="status-dot status-dot--warn" title="Още не е получено">0</span>{% else %}{{ row.qty }}{% endif %}</td>
                         <td>{{ row.mol_name }}</td>
-                        <td class="row-actions"><a class="btn" href="{{ url_for('stock.edit', item_id=row.id) }}">Редактирай</a></td>
+                        <td class="row-actions">
+                            <a class="btn" href="{{ url_for('stock.edit', item_id=row.id) }}">Редактирай</a>
+                            <form method="post" action="{{ url_for('stock.delete', item_id=row.id) }}" onsubmit="return confirm('Да се изтрие ли {{ row.inv_number }} {{ row.name|replace("'", "")|e }}?')"><button class="btn danger" type="submit">Изтрий</button></form>
+                        </td>
                     </tr>
                 {% else %}
                     <tr><td colspan="7">{% if query %}Няма позиции, които съвпадат с „{{ query }}“.{% else %}Няма позиции в тази група.{% endif %}</td></tr>
