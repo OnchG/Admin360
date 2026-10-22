@@ -19,7 +19,7 @@
             <label class="field"><span>Инвентарен номер</span><input name="inv_number" value="{{ item.inv_number or '' }}" required{% if is_new %} autofocus{% endif %}></label>
             <label class="field field--wide"><span>Наименование</span><input name="name" value="{{ item.name or '' }}" required></label>
             <label class="field"><span>Мярка</span><input name="unit" value="{{ item.unit or 'бр' }}" list="units"><datalist id="units"><option value="бр"><option value="к/кт"><option value="м"><option value="кг"></datalist></label>
-            <label class="field"><span>Количество</span><input name="quantity" inputmode="decimal" value="{{ fmt_qty(item.quantity) }}"></label>
+            <label class="field"><span>Общо количество</span><input name="quantity" inputmode="decimal" value="{{ fmt_qty(item.quantity) }}"></label>
             <label class="field field--wide"><span>МОЛ (материално отговорно лице)</span>
                 <select name="mol_employee_id" required>
                     <option value="">Изберете служител</option>
@@ -35,6 +35,17 @@
             <button class="btn primary" type="submit">Запази</button>
         </div>
     </form>
-    {% if not is_new %}<form id="delete-form" method="post" action="{{ url_for('stock.delete', item_id=item.id) }}" onsubmit="return confirm('Да се изтрие ли позицията?')"></form>{% endif %}
+    {% if holders %}
+    <section class="dash-card">
+        <div class="dash-card__head"><h2>Зачислено по картони <span class="count-note">инв. № {{ item.inv_number }}, под и над прага заедно</span></h2></div>
+        <div class="table-wrap">
+            <table class="data-table">
+                <thead><tr><th>Картон</th><th>Наименование по картона</th><th>Зачислено на</th><th class="num">Количество</th></tr></thead>
+                <tbody>{% for h in holders %}<tr><td><a class="row-link" href="{{ url_for('cards.show', card_id=h.card_id) }}">{{ h.title }}</a></td><td>{{ h.name }}</td><td class="mono">{{ h.issued_on|isodate }}</td><td class="num mono">{{ fmt_qty(h.quantity) }}</td></tr>{% endfor %}</tbody>
+            </table>
+        </div>
+    </section>
+    {% endif %}
+    {% if not is_new %}<form id="delete-form" data-ux-skip method="post" action="{{ url_for('stock.delete', item_id=item.id) }}" onsubmit="return confirm('Да се изтрие ли позицията?')"></form>{% endif %}
 </div>
 {% endblock %}

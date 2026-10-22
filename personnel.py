@@ -196,8 +196,9 @@ def sort_key_rank(item):
 
 
 def card_items_for(employee_id):
-    """Имущество, зачислено по картона на служителя. Модулът „Лични картони“ още не е изграден."""
-    return []
+    """Невърнатото имущество, зачислено по личния картон на служителя."""
+    from cards import card_items_for_employee  # cards импортира personnel
+    return card_items_for_employee(employee_id)
 
 
 # ---------- страници ----------

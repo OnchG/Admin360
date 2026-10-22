@@ -1,0 +1,40 @@
+{% extends "layouts/app_shell.html" %}
+{% set sidebar_active = 'kartoni' %}
+{% set header_title = 'Разминавания' %}
+{% set header_subtitle = 'Картони и склад' %}
+{% set header_breadcrumbs = [{'label': 'Начало', 'url': url_for('dashboard')}, {'label': 'Персонал'}, {'label': 'Картони', 'url': url_for('cards.index')}, {'label': 'Разминавания'}] %}
+{% block content %}
+<div class="page">
+    <section class="dash-card">
+        <div class="dash-card__head"><h2>По картони е зачислено повече от общото в склада <span class="count-note">{{ over|length }}</span></h2></div>
+        <div class="table-wrap">
+            <table class="data-table">
+                <thead><tr><th>Инв. номер</th><th>В склада</th><th class="num">Общо</th><th class="num">По картони</th><th>Кой го държи</th></tr></thead>
+                <tbody>
+                {% for row in over %}
+                    <tr><td class="mono">{{ row.inv }}</td><td>{{ row.name }}</td><td class="num mono">{{ '%g'|format(row.total) }}</td><td class="num mono">{{ '%g'|format(row.issued) }}</td>
+                        <td>{% for h in row.holders %}<a class="row-link" href="{{ url_for('cards.show', card_id=h.card_id) }}">{{ h.title }}</a> ({{ '%g'|format(h.quantity) }}){% if not loop.last %}, {% endif %}{% endfor %}</td></tr>
+                {% else %}
+                    <tr><td colspan="5" class="muted">Няма.</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+    <section class="dash-card">
+        <div class="dash-card__head"><h2>Инвентар по картони, който го няма в склада <span class="count-note">{{ missing|length }}</span></h2></div>
+        <div class="table-wrap">
+            <table class="data-table">
+                <thead><tr><th>Инв. номер</th><th>Наименование по картона</th><th class="num">Количество</th><th>Картон</th></tr></thead>
+                <tbody>
+                {% for row in missing %}
+                    <tr><td class="mono">{{ row.inv_number or '—' }}</td><td>{{ row.name }}</td><td class="num mono">{{ '%g'|format(row.quantity) }}</td><td><a class="row-link" href="{{ url_for('cards.show', card_id=row.card_id) }}">{{ row.title }}</a></td></tr>
+                {% else %}
+                    <tr><td colspan="4" class="muted">Няма.</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+</div>
+{% endblock %}

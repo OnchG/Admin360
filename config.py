@@ -30,7 +30,7 @@ MENU = [
     ]},
     {"label": "Персонал", "icon": "users", "items": [
         {"key": "sluzhiteli", "label": "Служители", "icon": "users", "endpoint": "personnel.employees"},
-        _page("kartoni", "Лични картони", "card"),
+        {"key": "kartoni", "label": "Картони", "icon": "card", "endpoint": "cards.index"},
     ]},
     {"label": "Склад", "icon": "box", "items": [
         {"key": "nalichnosti", "label": "Наличности", "icon": "box", "endpoint": "stock.items"},

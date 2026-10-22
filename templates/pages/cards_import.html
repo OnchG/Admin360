@@ -1,0 +1,34 @@
+{% extends "layouts/app_shell.html" %}
+{% set sidebar_active = 'kartoni' %}
+{% set header_title = 'Импорт на картони' %}
+{% set header_breadcrumbs = [{'label': 'Начало', 'url': url_for('dashboard')}, {'label': 'Персонал'}, {'label': 'Картони', 'url': url_for('cards.index')}, {'label': 'Импорт'}] %}
+{% block content %}
+<div class="page page--narrow">
+    <form class="dash-card form-card" method="post" enctype="multipart/form-data">
+        <div class="dash-card__head"><h2>Качете .xls картони</h2></div>
+        <p class="form-hint">Чете се вторият лист: името от ред 3, позициите от ред 7 надолу. Редовете след „Дълготрайни активи“ и „Лични предпазни средства“ отиват в тези раздели.
+            Личният картон се свързва със служителя по име и фамилия. Ако картонът вече съществува, позициите му се заменят с тези от файла.</p>
+        <div class="form-grid">
+            <label class="field"><span>Вид</span>
+                <select name="kind">{% for k, label in kinds.items() %}<option value="{{ k }}"{% if k == kind %} selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+            </label>
+            <label class="field"><span>Файлове</span><input type="file" name="files" accept=".xls" multiple required></label>
+        </div>
+        <div class="form-actions">
+            <a class="btn" href="{{ url_for('cards.index') }}">Към картоните</a>
+            <button class="btn primary" type="submit">Импортирай</button>
+        </div>
+    </form>
+    {% if results %}
+    <section class="dash-card">
+        <div class="dash-card__head"><h2>Резултат</h2></div>
+        <div class="table-wrap">
+            <table class="data-table">
+                <thead><tr><th>Файл</th><th>Резултат</th></tr></thead>
+                <tbody>{% for name, card_id, text in results %}<tr><td>{{ name }}</td><td>{% if card_id %}<a class="row-link" href="{{ url_for('cards.show', card_id=card_id) }}">{{ text }}</a>{% else %}<span class="status-dot status-dot--bad">{{ text }}</span>{% endif %}</td></tr>{% endfor %}</tbody>
+            </table>
+        </div>
+    </section>
+    {% endif %}
+</div>
+{% endblock %}

@@ -10,6 +10,7 @@ from flask import Flask, abort, flash, redirect, render_template, request, url_f
 import config
 import db
 import personnel
+import cards
 import settings
 import stock
 
@@ -19,10 +20,12 @@ db.init_app(app)
 app.register_blueprint(personnel.bp)
 app.register_blueprint(settings.bp)
 app.register_blueprint(stock.bp)
+app.register_blueprint(cards.bp)
 with app.app_context():
     personnel.init_db()
     settings.init_db()
     stock.init_db()
+    cards.init_db()
 
 # Страници, които още нямат съдържание: виж PLACEHOLDERS в config.py.
 PLACEHOLDERS = config.PLACEHOLDERS
@@ -40,6 +43,12 @@ STATUS_LABELS = {"ok": "Налично", "warn": "Под минимума", "bad
 def bgdate(value):
     """Дата във формат дд.мм.гггг."""
     return value.strftime("%d.%m.%Y") if value else ""
+
+
+@app.template_filter("isodate")
+def isodate(value):
+    """„2026-10-22“ -> 22.10.2026."""
+    return bgdate(date.fromisoformat(value)) if value else ""
 
 
 @app.template_filter("bgnum")

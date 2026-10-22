@@ -1,0 +1,66 @@
+{% extends "layouts/app_shell.html" %}
+{% set sidebar_active = 'kartoni' %}
+{% set header_title = card.title %}
+{% set header_subtitle = 'Личен картон' if card.kind == 'personal' else 'Картон по съоръжение' %}
+{% set header_breadcrumbs = [{'label': 'Начало', 'url': url_for('dashboard')}, {'label': 'Персонал'}, {'label': 'Картони', 'url': url_for('cards.index', vid=card.kind)}, {'label': card.title}] %}
+{% from "components/date_input.html" import date_input %}
+{% block content %}
+<div class="page">
+    <section class="dash-card">
+        <div class="dash-card__head">
+            <h2>{{ card.title }}{% if employee %} <span class="count-note">{{ employee.position }}</span>{% endif %}</h2>
+            <div class="card-summary">
+                {% for key, label in section_labels.items() %}
+                <span class="chip">{{ label }} <strong>{{ sections[key]|selectattr('returned_on', 'none')|list|length }}</strong></span>
+                {% endfor %}
+                {% set problems = sections.inventory|selectattr('returned_on', 'none')|rejectattr('in_stock')|list|length + sections.inventory|selectattr('over')|list|length %}
+                {% if problems %}<span class="chip chip--bad">Разминавания <strong>{{ problems }}</strong></span>{% endif %}
+            </div>
+        </div>
+        {% if employee %}<p class="form-hint">Служител: <a class="row-link" href="{{ url_for('personnel.edit', employee_id=employee.id) }}">{{ card.title }}</a>. Не може да напусне, докато по картона има невърнато имущество.</p>{% endif %}
+    </section>
+
+    {% for key, label in section_labels.items() %}
+    <section class="dash-card">
+        <div class="dash-card__head"><h2>{{ label }} <span class="count-note">{% if key == 'inventory' %}свързан със склада по инвентарен номер{% else %}не се води в склада{% endif %}</span></h2></div>
+        <div class="table-wrap">
+            <table class="data-table">
+                <thead><tr><th>{{ 'Инв. номер' if key != 'fixed' else 'Номер' }}</th><th>Наименование по картона</th>{% if key == 'inventory' %}<th>В склада</th>{% endif %}<th>Зачислено на</th><th class="num">Количество</th><th>Състояние</th><th></th></tr></thead>
+                <tbody>
+                {% for item in sections[key] %}
+                    <tr class="{% if item.returned_on %}row-returned{% endif %}">
+                        <td class="mono">{{ item.inv_number or '—' }}</td>
+                        <td>{{ item.name }}</td>
+                        {% if key == 'inventory' %}
+                        <td>{% if item.in_stock %}
+                                {% for s in item.stock %}<a class="row-link" href="{{ url_for('stock.items', sklad=card.warehouse_id, q=item.inv_number) }}">{{ s.name }}</a> <span class="group-tag group-tag--{{ s.value_class }}">{{ 'под' if s.value_class == 'under' else 'над' }}</span>{% if not loop.last %}<br>{% endif %}{% endfor %}
+                            {% else %}<span class="status-dot status-dot--bad">няма го в склада</span>{% endif %}</td>
+                        {% endif %}
+                        <td class="mono">{{ item.issued_on|bgdate }}</td>
+                        <td class="num mono">{{ '%g'|format(item.quantity)|replace('.', ',') }}</td>
+                        <td>{% if item.returned_on %}върнато {{ item.returned_on|bgdate }}{% elif item.over %}<span class="status-dot status-dot--bad">повече от общото в склада</span>{% else %}<span class="status-dot status-dot--ok">зачислено</span>{% endif %}</td>
+                        <td class="row-actions">
+                            {% if not item.returned_on %}
+                            <form method="post" action="{{ url_for('cards.return_item', item_id=item.id) }}" data-ux-skip onsubmit="return confirm('Да се отбележи ли като върнато днес?')"><button class="btn" type="submit">Върнато</button></form>
+                            {% endif %}
+                            <form method="post" action="{{ url_for('cards.delete_item', item_id=item.id) }}" data-ux-skip onsubmit="return confirm('Да се изтрие ли редът от картона?')"><button class="btn danger" type="submit">Изтрий</button></form>
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr><td colspan="{{ 7 if key == 'inventory' else 6 }}" class="muted">Няма позиции.</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <form class="inline-form" method="post" action="{{ url_for('cards.add_item', card_id=card.id) }}" data-ux-skip>
+            <input type="hidden" name="section" value="{{ key }}">
+            <label class="field"><span>{{ 'Инв. номер' if key != 'fixed' else 'Номер' }}</span><input name="inv_number"></label>
+            <label class="field" style="grid-column:span 2"><span>Наименование</span><input name="name" required></label>
+            <label class="field"><span>Количество</span><input name="quantity" inputmode="decimal" value="1" required></label>
+            <div class="field"><span>Зачислено на</span>{{ date_input('issued_on', today) }}</div>
+            <button class="btn primary" type="submit">Зачисли</button>
+        </form>
+    </section>
+    {% endfor %}
+</div>
+{% endblock %}
