@@ -32,6 +32,12 @@
                 <input name="position" value="{{ employee.position or '' }}" list="positions" placeholder="Например: Инженер, ХЕС" required>
                 <datalist id="positions">{% for p in positions %}<option value="{{ p }}">{% endfor %}</datalist>
             </label>
+            <label class="field"><span>Място</span>
+                <select name="site">
+                    <option value="">—</option>
+                    {% for s in sites %}<option value="{{ s }}"{% if employee.site == s %} selected{% endif %}>{{ s }}</option>{% endfor %}
+                </select>
+            </label>
             <div class="field"><span>Дата на постъпване</span>{{ date_input('hired_on', (employee.hired_on or '')|string) }}</div>
             <label class="field field--wide"><span>Бележка</span><textarea name="note" rows="3">{{ employee.note or '' }}</textarea></label>
         </div>

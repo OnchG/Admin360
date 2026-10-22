@@ -27,7 +27,7 @@ bp = Blueprint("cards", __name__, url_prefix="/kartoni")
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS cards (
     id INTEGER PRIMARY KEY,
-    kind TEXT NOT NULL CHECK (kind IN ('personal', 'facility')),
+    kind TEXT NOT NULL CHECK (kind IN ('personal', 'facility', 'vehicle')),
     employee_id INTEGER REFERENCES employees(id),
     title TEXT NOT NULL,
     warehouse_id INTEGER NOT NULL DEFAULT 1 REFERENCES warehouses(id),
@@ -49,7 +49,7 @@ CREATE TABLE IF NOT EXISTS card_items (
 CREATE INDEX IF NOT EXISTS card_items_inv ON card_items (inv_number);
 """
 
-KINDS = {"personal": "Лични картони", "facility": "Картони по съоръжения"}
+KINDS = {"personal": "Лични картони", "facility": "Картони по съоръжения", "vehicle": "Автотранспорт"}
 SECTIONS = {"inventory": "Инвентар", "ppe": "Лични предпазни средства", "fixed": "Дълготрайни активи"}
 
 SEED_FILE = "kartoni_krichim.json"
@@ -63,6 +63,11 @@ IGNORED_INV = {"9-180049", "9-130107", "9-180019", "9-310015", "9-110075"}
 TSANKOV_KAMAK = 2
 DIMITAR_TSK_INV = ("9-160109", "9-050023", "9-050036", "9-170041")
 NOT_DOCUMENTED = ("Компютър: ThinkCentre neo 50 s", "Клавиатура: Lenovo SK 8823", "Мишка: Lenovo Wireless L300")
+# Служителите с картони от първия импорт са на яз. стена Въча (указание от 22.10.2026).
+SEED_SITE_VACHA = "sluzhiteli_myasto_vacha"
+SITE_VACHA = "Яз. стена Въча"
+# Следващи картони: служителите от яз. стена Кричим (с поле "site") и автотранспортът.
+LATER_SEEDS = ["kartoni_stena_krichim.json", "kartoni_avtotransport.json"]
 # Склад на позиция по картон: собственият ѝ, ако е зададен, иначе складът на картона.
 EFF = "COALESCE(ci.warehouse_id, c.warehouse_id)"
 SEED_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "seed")
@@ -72,8 +77,41 @@ def _now():
     return datetime.now().isoformat(timespec="seconds")
 
 
+def _allow_vehicle_kind(db):
+    """Стари бази: таблицата cards е без вида 'vehicle' в CHECK. SQLite не сменя CHECK, затова се пресъздава."""
+    sql = db.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'cards'").fetchone()
+    if not sql or "'vehicle'" in sql[0]:
+        return
+    db.commit()
+    db.execute("PRAGMA foreign_keys = OFF")  # иначе DROP TABLE изтрива позициите по картоните (ON DELETE CASCADE)
+    try:
+        db.executescript(
+            # нова таблица, копие и смяна на името (не RENAME на старата: тогава card_items сочи към нея)
+            "BEGIN;"
+            + SCHEMA.split("CREATE TABLE IF NOT EXISTS card_items")[0].replace("IF NOT EXISTS cards (", "cards_new (") +
+            "INSERT INTO cards_new SELECT * FROM cards;"
+            "DROP TABLE cards;"
+            "ALTER TABLE cards_new RENAME TO cards;"
+            "COMMIT;")
+    finally:
+        db.execute("PRAGMA foreign_keys = ON")
+
+
+def _load_seed(db, filename):
+    if db.execute("SELECT 1 FROM stock_seeds WHERE filename = ?", (filename,)).fetchone():
+        return
+    with open(os.path.join(SEED_DIR, filename), encoding="utf-8") as fh:
+        for card in json.load(fh):
+            card_id, _error = save_card(card["owner"], card["kind"], card["items"])
+            if card_id and card.get("site"):
+                db.execute("UPDATE employees SET site = ? WHERE site = '' AND id ="
+                           " (SELECT employee_id FROM cards WHERE id = ?)", (card["site"], card_id))
+    db.execute("INSERT INTO stock_seeds (filename) VALUES (?)", (filename,))
+
+
 def init_db():
     db = get_db()
+    _allow_vehicle_kind(db)
     db.executescript(SCHEMA)
     if "warehouse_id" not in {r["name"] for r in db.execute("PRAGMA table_info(card_items)")}:
         db.execute("ALTER TABLE card_items ADD COLUMN warehouse_id INTEGER REFERENCES warehouses(id)")
@@ -98,6 +136,12 @@ def init_db():
                    "  WHERE e.first_name = 'Димитър' AND e.last_name = 'Костадинов')",
                    (TSANKOV_KAMAK, *DIMITAR_TSK_INV))
         db.execute("INSERT INTO stock_seeds (filename) VALUES (?)", (SEED_FIX,))
+    if not db.execute("SELECT 1 FROM stock_seeds WHERE filename = ?", (SEED_SITE_VACHA,)).fetchone():
+        db.execute("UPDATE employees SET site = ? WHERE site = '' AND id IN"
+                   " (SELECT employee_id FROM cards WHERE kind = 'personal')", (SITE_VACHA,))
+        db.execute("INSERT INTO stock_seeds (filename) VALUES (?)", (SEED_SITE_VACHA,))
+    for filename in LATER_SEEDS:
+        _load_seed(db, filename)
     db.commit()
 
 
@@ -172,10 +216,11 @@ def mismatches(warehouse_id=1):
     totals, issued = stock_totals(warehouse_id), issued_by_inv(warehouse_id)
     over = [(inv, totals[inv], q) for inv, q in issued.items() if inv in totals and q > totals[inv] + 1e-9]
     missing = get_db().execute(
-        "SELECT c.id AS card_id, c.title, ci.* FROM card_items ci JOIN cards c ON c.id = ci.card_id"
+        "SELECT c.id AS card_id, c.title, c.kind, ci.* FROM card_items ci JOIN cards c ON c.id = ci.card_id"
         f" WHERE {EFF} = ? AND ci.section = 'inventory' AND ci.returned_on IS NULL ORDER BY ci.inv_number, c.title",
         (warehouse_id,)).fetchall()
-    missing = [r for r in missing if r["inv_number"] not in totals]
+    # принадлежностите на автомобил без номер (крик, аптечка…) не се водят в склада
+    missing = [r for r in missing if r["inv_number"] not in totals and (r["inv_number"] or r["kind"] != "vehicle")]
     return sorted(over), missing
 
 
@@ -254,10 +299,15 @@ def parse_xls(content):
     if book.nsheets < 2 or not book.sheet_by_index(1).nrows:
         return _parse_short(book.sheet_by_index(0))
     sheet = book.sheet_by_index(1)
-    owner = next(str(v).strip() for v in sheet.row_values(2) if str(v).strip())
+    # име на служителя; при автомобил – номер на актива и наименование („5301014 | УАЗ С 3836 ВР“): взема се текстът
+    cells = [str(v).strip() for v in sheet.row_values(2) if str(v).strip()]
+    owner = next((c for c in cells if not re.fullmatch(r"[\d.]+", c)), cells[0])
     section, items = "inventory", []
     for r in range(6, sheet.nrows):
-        inv, name = _cell_text(sheet.cell_value(r, 0)), " ".join(str(sheet.cell_value(r, 1)).split())
+        row = sheet.row_values(r) + ["", "", "", ""]
+        if isinstance(row[1], float) and isinstance(row[0], str) and not re.match(r"^\s*\d", row[0]):
+            row = [""] + row  # ред без номер: наименованието е в първата колона
+        inv, name = _cell_text(row[0]), " ".join(str(row[1]).split())
         head = f"{inv} {name}".lower()
         if "дълготрайни" in head:
             section = "fixed"
@@ -267,9 +317,11 @@ def parse_xls(content):
             continue
         if not (inv or name):
             continue
-        qty = sheet.cell_value(r, 3)
-        items.append({"section": section, "inv": inv, "name": name, "date": _cell_date(sheet.cell_value(r, 2)),
-                      "qty": float(qty) if qty not in ("", None) else 0})
+        if not name and items and inv:
+            name = items[-1]["name"]  # поредни номера от един комплект: наименованието е само на първия ред
+        # картон без раздел „Дълготрайни“: номерата извън 9-…/09-… пак са дълготрайни активи (напр. 206/102)
+        row_section = "fixed" if section == "inventory" and inv and not re.match(r"^0?9-", inv) else section
+        items.append({"section": row_section, "inv": inv, "name": name, "date": _cell_date(row[2]), "qty": _cell_qty(row[3])})
     return " ".join(owner.split()), items
 
 
@@ -281,12 +333,20 @@ def _parse_short(sheet):
         inv, name = _cell_text(sheet.cell_value(r, 0)), " ".join(str(sheet.cell_value(r, 1)).split())
         if not name:
             continue  # празен ред или междинно заглавие
-        qty = sheet.cell_value(r, 2)
+        qty = _cell_qty(sheet.cell_value(r, 2))
         # номерата извън 9-…/09-… са дълготрайни активи (собствена номерация, напр. „64 / 6“)
         section = "inventory" if re.match(r"^0?9-", inv) else "fixed"
         items.append({"section": section, "inv": inv, "name": name, "date": None,
-                      "qty": float(qty) if qty not in ("", None) else 0})
+                      "qty": qty})
     return " ".join(owner.split()), items
+
+
+def _cell_qty(value):
+    """Количество от клетка: число или текст като „10м“, „2,5“ (мярката се пропуска)."""
+    if isinstance(value, (int, float)):
+        return float(value)
+    match = re.match(r"\s*(\d+(?:[.,]\d+)?)", str(value))
+    return float(match.group(1).replace(",", ".")) if match else 0
 
 
 def _cell_text(value):
@@ -317,18 +377,23 @@ def _date(value):
 
 @bp.route("/")
 def index():
+    from personnel import SITES
     kind = request.args.get("vid") if request.args.get("vid") in KINDS else "personal"
+    site = request.args.get("myasto") if request.args.get("myasto") in SITES else ""
     rows = get_db().execute(
-        "SELECT c.*, e.left_on,"
+        "SELECT c.*, e.left_on, e.site,"
         " SUM(CASE WHEN ci.section = 'inventory' AND ci.returned_on IS NULL THEN 1 ELSE 0 END) AS n_inventory,"
         " SUM(CASE WHEN ci.section = 'ppe' AND ci.returned_on IS NULL THEN 1 ELSE 0 END) AS n_ppe,"
         " SUM(CASE WHEN ci.section = 'fixed' AND ci.returned_on IS NULL THEN 1 ELSE 0 END) AS n_fixed"
         " FROM cards c LEFT JOIN employees e ON e.id = c.employee_id LEFT JOIN card_items ci ON ci.card_id = c.id"
         " WHERE c.kind = ? GROUP BY c.id ORDER BY c.title", (kind,)).fetchall()
+    site_counts = {s: sum(1 for r in rows if r["site"] == s) for s in SITES}
+    if kind == "personal" and site:
+        rows = [r for r in rows if r["site"] == site]
     counts = {r["kind"]: r["n"] for r in get_db().execute("SELECT kind, COUNT(*) AS n FROM cards GROUP BY kind")}
     over, missing = all_mismatches()
     return render_template("pages/cards.html", rows=rows, kind=kind, kinds=KINDS, counts=counts,
-                           problem_count=len(over) + len(missing))
+                           problem_count=len(over) + len(missing), sites=SITES, site=site, site_counts=site_counts)
 
 
 def _stock_link(warehouse_id):

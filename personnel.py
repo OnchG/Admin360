@@ -142,6 +142,10 @@ def _now():
     return datetime.now().isoformat(timespec="seconds")
 
 
+# Къде е позициониран служителят (поле „Място“).
+SITES = ["Яз. стена Въча", "Яз. стена Кричим"]
+
+
 # ---------- база ----------
 
 def init_db():
@@ -149,6 +153,8 @@ def init_db():
     db.executescript(SCHEMA)
     if "photo" not in {r["name"] for r in db.execute("PRAGMA table_info(employees)")}:
         db.execute("ALTER TABLE employees ADD COLUMN photo TEXT NOT NULL DEFAULT ''")
+    if "site" not in {r["name"] for r in db.execute("PRAGMA table_info(employees)")}:
+        db.execute("ALTER TABLE employees ADD COLUMN site TEXT NOT NULL DEFAULT ''")
     if db.execute("SELECT COUNT(*) FROM employees").fetchone()[0] == 0:
         for line in SEED.strip().splitlines():
             name, position = line.split("|")
@@ -266,12 +272,21 @@ def employees():
     sort = "az" if request.args.get("sort") == "az" else "rank"
     view = "karti" if request.args.get("izgled") == "karti" else "tablica"
     rows = [_view(r) for r in get_db().execute("SELECT * FROM employees WHERE left_on IS NULL")]
+    site_counts = {s: sum(1 for r in rows if r["site"] == s) for s in SITES}
+    site = request.args.get("myasto", "")
+    if site in SITES:
+        rows = [r for r in rows if r["site"] == site]
+    elif site == "bez":
+        rows = [r for r in rows if not r["site"]]
+    else:
+        site = ""
     rows.sort(key=sort_key_alpha if sort == "az" else sort_key_rank)
     former = get_db().execute("SELECT COUNT(*) FROM employees WHERE left_on IS NOT NULL").fetchone()[0]
     cards = {r["employee_id"]: r for r in get_db().execute(
         "SELECT c.employee_id, c.id, SUM(CASE WHEN ci.returned_on IS NULL AND ci.id IS NOT NULL THEN 1 ELSE 0 END) AS n"
         " FROM cards c LEFT JOIN card_items ci ON ci.card_id = c.id WHERE c.kind = 'personal' GROUP BY c.id")}
     return render_template("pages/employees.html", rows=rows, sort=sort, view=view, former_count=former, cards=cards,
+                           sites=SITES, site=site, site_counts=site_counts,
                            manage=request.endpoint == "personnel.manage")
 
 
@@ -322,14 +337,15 @@ def create():
             db = get_db()
             employee_id = _insert(db, data["first_name"], data["middle_name"], data["last_name"], data["position"],
                                   data["hired_on"], data["note"])
+            db.execute("UPDATE employees SET site = ? WHERE id = ?", (data["site"], employee_id))
             _apply_photo(db, employee_id)
             db.commit()
             flash(f"Служителят {data['first_name']} {data['last_name']} е добавен.", "ok")
             return redirect(url_for("personnel.manage"))
         for message in errors:
             flash(message, "bad")
-        return render_template("pages/employee_form.html", employee=data, positions=_positions(), events=[])
-    return render_template("pages/employee_form.html", employee={}, positions=_positions(), events=[])
+        return render_template("pages/employee_form.html", employee=data, positions=_positions(), sites=SITES, events=[])
+    return render_template("pages/employee_form.html", employee={}, positions=_positions(), sites=SITES, events=[])
 
 
 @bp.route("/sluzhiteli/<int:employee_id>/redakcia", methods=["GET", "POST"])
@@ -347,9 +363,9 @@ def edit(employee_id):
             if changes:
                 db.execute(
                     "UPDATE employees SET first_name = ?, middle_name = ?, last_name = ?, position = ?, hired_on = ?, note = ?,"
-                    " updated_at = ? WHERE id = ?",
+                    " site = ?, updated_at = ? WHERE id = ?",
                     (data["first_name"], data["middle_name"], data["last_name"], data["position"], data["hired_on"],
-                     data["note"], _now(), employee_id),
+                     data["note"], data["site"], _now(), employee_id),
                 )
                 _log(db, employee_id, "edited", "; ".join(changes))
                 db.commit()
@@ -360,7 +376,8 @@ def edit(employee_id):
         employee = {**_view(row), **data}
     else:
         employee = _view(row)
-    return render_template("pages/employee_form.html", employee=employee, positions=_positions(), events=_events(employee_id))
+    return render_template("pages/employee_form.html", employee=employee, positions=_positions(), sites=SITES,
+                           events=_events(employee_id))
 
 
 @bp.route("/sluzhiteli/<int:employee_id>/napuskane", methods=["GET", "POST"])
@@ -398,7 +415,7 @@ def restore(employee_id):
 
 
 FIELD_LABELS = {"first_name": "Име", "middle_name": "Презиме", "last_name": "Фамилия", "position": "Длъжност",
-                "hired_on": "Постъпил", "note": "Бележка"}
+                "hired_on": "Постъпил", "site": "Място", "note": "Бележка"}
 
 
 def _read_form():
@@ -409,6 +426,7 @@ def _read_form():
         "last_name": normalize_name(form.get("last_name")),
         "position": normalize_position(form.get("position")),
         "hired_on": _parse_date(form.get("hired_on")),
+        "site": form.get("site") if form.get("site") in SITES else "",
         "note": form.get("note", "").strip(),
     }
     errors = [f"Попълнете „{FIELD_LABELS[key]}“." for key in ("first_name", "last_name", "position") if not data[key]]

@@ -19,6 +19,7 @@
                 {% else %}<span class="status-dot status-dot--ok">В личния състав</span>{% endif %}
             </div>
             <dl class="person-facts">
+                <div><dt>Място</dt><dd>{{ employee.site or '—' }}</dd></div>
                 <div><dt>Постъпил</dt><dd>{{ employee.hired_on|bgdate or '—' }}</dd></div>
                 <div><dt>Стаж в района</dt><dd>{% if employee.service %}{{ employee.service[0] }} г. {{ employee.service[1] }} мес.{% else %}—{% endif %}</dd></div>
                 <div><dt>Имущество по картон</dt><dd>{{ items|length }} позиции</dd></div>
