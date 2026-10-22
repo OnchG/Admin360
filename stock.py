@@ -11,11 +11,12 @@
     1;ПАВЕЛ ПАВЛОВ;2001 БРАДВА<TAB>бр<TAB>2          инв. номер и наименование, разделени с интервал
     1;ПАВЕЛ ПАВЛОВ;1000<TAB>бр<TAB>                  без наименование и количество: записва се с количество 0
 """
+import io
 import os
 import re
 from datetime import datetime
 
-from flask import Blueprint, abort, flash, jsonify, redirect, render_template, request, url_for
+from flask import Blueprint, abort, flash, jsonify, redirect, render_template, request, send_file, url_for
 
 import settings
 from db import get_db
@@ -335,6 +336,20 @@ def _save(data, item_id=None):
                    f" VALUES ({', '.join('?' for _ in cols)}, ?, ?)", (*values, _now(), _now()))
     db.commit()
     return None
+
+
+@bp.route("/eksport")
+def export():
+    """Инвентаризационният опис в Excel (под и над прага, с колона за всеки картон)."""
+    from inventory_export import build
+    warehouse_id = _filters()[0]
+    try:
+        as_of = datetime.strptime(request.args.get("kam", ""), "%Y-%m-%d").date()
+    except ValueError:
+        as_of = None
+    filename, content = build(warehouse_id, as_of)
+    return send_file(io.BytesIO(content), as_attachment=True, download_name=filename,
+                     mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 
 @bp.route("/tarsene")
