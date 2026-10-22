@@ -13,6 +13,7 @@
 """
 import json
 import os
+import re
 from collections import defaultdict
 from datetime import date, datetime, timedelta
 
@@ -52,6 +53,8 @@ KINDS = {"personal": "Лични картони", "facility": "Картони п
 SECTIONS = {"inventory": "Инвентар", "ppe": "Лични предпазни средства", "fixed": "Дълготрайни активи"}
 
 SEED_FILE = "kartoni_krichim.json"
+# Картони по съоръжения, подадени след личните (зареждат се веднъж, като личните).
+SEED_FACILITIES = "kartoni_saorazhenia.json"
 # Корекции по първоначалния импорт (указания на потребителя от 22.10.2026), за бази, заредени преди тях.
 SEED_FIX = "kartoni_krichim_fix1"
 # Стари или бракувани номера, които не се зачисляват по картони.
@@ -79,6 +82,11 @@ def init_db():
             for card in json.load(fh):
                 save_card(card["owner"], card["kind"], card["items"])
         db.execute("INSERT INTO stock_seeds (filename) VALUES (?)", (SEED_FILE,))
+    if not db.execute("SELECT 1 FROM stock_seeds WHERE filename = ?", (SEED_FACILITIES,)).fetchone():
+        with open(os.path.join(SEED_DIR, SEED_FACILITIES), encoding="utf-8") as fh:
+            for card in json.load(fh):
+                save_card(card["owner"], card["kind"], card["items"])
+        db.execute("INSERT INTO stock_seeds (filename) VALUES (?)", (SEED_FACILITIES,))
     if not db.execute("SELECT 1 FROM stock_seeds WHERE filename = ?", (SEED_FIX,)).fetchone():
         marks = ",".join("?" * len(IGNORED_INV))
         db.execute(f"DELETE FROM card_items WHERE section = 'inventory' AND inv_number IN ({marks})", tuple(IGNORED_INV))
@@ -226,9 +234,15 @@ def save_card(owner, kind, items, warehouse_id=1):
 
 
 def parse_xls(content):
-    """Втори лист на .xls картон -> (име, [позиции])."""
+    """Втори лист на .xls картон -> (име, [позиции]).
+
+    Картоните по съоръжения са на първия лист и са по-кратки: инв. номер, наименование, количество.
+    """
     import xlrd
-    sheet = xlrd.open_workbook(file_contents=content).sheet_by_index(1)
+    book = xlrd.open_workbook(file_contents=content)
+    if book.nsheets < 2 or not book.sheet_by_index(1).nrows:
+        return _parse_short(book.sheet_by_index(0))
+    sheet = book.sheet_by_index(1)
     owner = next(str(v).strip() for v in sheet.row_values(2) if str(v).strip())
     section, items = "inventory", []
     for r in range(6, sheet.nrows):
@@ -244,6 +258,22 @@ def parse_xls(content):
             continue
         qty = sheet.cell_value(r, 3)
         items.append({"section": section, "inv": inv, "name": name, "date": _cell_date(sheet.cell_value(r, 2)),
+                      "qty": float(qty) if qty not in ("", None) else 0})
+    return " ".join(owner.split()), items
+
+
+def _parse_short(sheet):
+    """Кратък картон: заглавие на 4-ия ред, позициите от 8-ия (инв. номер, наименование, количество)."""
+    owner = next(str(v).strip() for v in sheet.row_values(3) if str(v).strip())
+    items = []
+    for r in range(7, sheet.nrows):
+        inv, name = _cell_text(sheet.cell_value(r, 0)), " ".join(str(sheet.cell_value(r, 1)).split())
+        if not name:
+            continue  # празен ред или междинно заглавие
+        qty = sheet.cell_value(r, 2)
+        # номерата извън 9-…/09-… са дълготрайни активи (собствена номерация, напр. „64 / 6“)
+        section = "inventory" if re.match(r"^0?9-", inv) else "fixed"
+        items.append({"section": section, "inv": inv, "name": name, "date": None,
                       "qty": float(qty) if qty not in ("", None) else 0})
     return " ".join(owner.split()), items
 
