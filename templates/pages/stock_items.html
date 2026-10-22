@@ -8,7 +8,7 @@
 <div class="page">
     <section class="dash-card">
         <div class="dash-card__head">
-            <h2>Склад {{ wh_name }} · {{ class_labels[value_class]|lower }} <span class="count-note">{{ rows|length }} позиции{% if pending_count %}, {{ pending_count }} очаквани{% endif %}</span></h2>
+            <h2>Склад {{ wh_name }} · {{ class_labels[value_class]|lower }} <span class="count-note">{{ rows|length }} позиции{% if missing_count %}, {{ missing_count }} неналични{% endif %}</span></h2>
             <div class="head-actions">
                 <div class="seg-toggle" role="group" aria-label="Склад">
                     {% for w in warehouses %}
@@ -38,9 +38,9 @@
                     <tr>
                         <td class="num mono">{{ loop.index }}</td>
                         <td class="mono">{{ row.inv_number }}</td>
-                        <td><a class="row-link" href="{{ url_for('stock.edit', item_id=row.id) }}">{{ row.name }}</a>{% if row.note %} <span class="count-note">{{ row.note }}</span>{% endif %}</td>
+                        <td><a class="row-link" href="{{ url_for('stock.edit', item_id=row.id) }}">{{ row.name or '(без наименование)' }}</a>{% if row.note %} <span class="count-note">{{ row.note }}</span>{% endif %}</td>
                         <td>{{ row.unit }}</td>
-                        <td class="num mono">{% if row.pending %}<span class="status-dot status-dot--warn" title="Още не е получено">0 · очакват се {{ row.expected }}</span>{% else %}{{ row.qty }}{% endif %}</td>
+                        <td class="num mono">{% if row.missing %}<span class="status-dot status-dot--warn" title="Още не е получено">0</span>{% else %}{{ row.qty }}{% endif %}</td>
                         <td>{{ row.mol_name }}</td>
                         <td class="row-actions"><a class="btn" href="{{ url_for('stock.edit', item_id=row.id) }}">Редактирай</a></td>
                     </tr>

@@ -1,6 +1,6 @@
 {% extends "layouts/app_shell.html" %}
 {% set is_new = not item.id %}
-{% set title = 'Нова позиция' if is_new else item.name %}
+{% set title = 'Нова позиция' if is_new else (item.name or item.inv_number) %}
 {% set sidebar_active = 'nalichnosti' %}
 {% set header_title = title %}
 {% set header_subtitle = 'Склад' %}
@@ -20,7 +20,6 @@
             <label class="field field--wide"><span>Наименование</span><input name="name" value="{{ item.name or '' }}" required></label>
             <label class="field"><span>Мярка</span><input name="unit" value="{{ item.unit or 'бр' }}" list="units"><datalist id="units"><option value="бр"><option value="к/кт"><option value="м"><option value="кг"></datalist></label>
             <label class="field"><span>Количество</span><input name="quantity" inputmode="decimal" value="{{ fmt_qty(item.quantity) }}"></label>
-            <label class="field"><span>Очаквано количество</span><input name="expected_quantity" inputmode="decimal" value="{{ fmt_qty(item.expected_quantity) }}" placeholder="само ако още не е получено"></label>
             <label class="field field--wide"><span>МОЛ (материално отговорно лице)</span>
                 <select name="mol_employee_id" required>
                     <option value="">Изберете служител</option>
@@ -29,7 +28,7 @@
             </label>
             <label class="field field--wide"><span>Бележка</span><textarea name="note" rows="2">{{ item.note or '' }}</textarea></label>
         </div>
-        <p class="form-hint">Материал, който още не е получен, се води с количество 0, а поръчаното се пише в „Очаквано количество“.</p>
+        <p class="form-hint">Материал, който още не е получен, се води с количество 0.</p>
         <div class="form-actions">
             <a class="btn" href="{{ url_for('stock.items', sklad=item.warehouse_id, grupa=item.value_class) }}">Отказ</a>
             <button class="btn primary" type="submit">Запази</button>

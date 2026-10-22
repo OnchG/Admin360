@@ -2,13 +2,13 @@
 
 Всяка позиция е в един склад, в група „под прага“ или „над прага“ (прагът е настройка, сега 20 лв)
 и има МОЛ: материално отговорен служител от модула „Персонал“.
-Позиция, която още не е получена, е с количество 0; очакваното количество се пази отделно.
+Позиция, която още не е получена (празно количество), е с количество 0.
 
 Импорт: редове във вида, в който се копират от таблицата (разделител ';', а мярката и количеството
 са в отделни колони, т.е. разделени с табулация):
     1;ПАВЕЛ ПАВЛОВ;9-020003;БРАДВИ<TAB>бр<TAB>9      склад; МОЛ; инв. номер; наименование; мярка; количество
     1;ПАВЕЛ ПАВЛОВ;2001 БРАДВА<TAB>бр<TAB>2          инв. номер и наименование, разделени с интервал
-    1;ПАВЕЛ ПАВЛОВ;1000<TAB>бр<TAB>                  само номер без наименование: заглавие на група, пропуска се
+    1;ПАВЕЛ ПАВЛОВ;1000<TAB>бр<TAB>                  без наименование и количество: записва се с количество 0
 """
 import os
 import re
@@ -35,7 +35,6 @@ CREATE TABLE IF NOT EXISTS stock_items (
     name TEXT NOT NULL,
     unit TEXT NOT NULL DEFAULT 'бр',
     quantity REAL NOT NULL DEFAULT 0,
-    expected_quantity REAL,
     mol_employee_id INTEGER REFERENCES employees(id),
     note TEXT NOT NULL DEFAULT '',
     created_at TEXT NOT NULL,
@@ -49,10 +48,10 @@ WAREHOUSES = [(1, "Кричим"), (2, "Цанков камък")]
 
 VALUE_CLASSES = ("under", "over")
 
-# Началната наличност: (файл в seed/, група, още не е получена)
+# Началната наличност: (файл в seed/, група)
 SEED_FILES = [
-    ("krichim_pod_prag.txt", "under", False),
-    ("krichim_pod_prag_ochakvani.txt", "under", True),
+    ("krichim_pod_prag.txt", "under"),
+    ("krichim_pod_prag_2.txt", "under"),
 ]
 SEED_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "seed")
 
@@ -80,9 +79,9 @@ def init_db():
     db.executescript(SCHEMA)
     db.executemany("INSERT OR IGNORE INTO warehouses (id, name) VALUES (?, ?)", WAREHOUSES)
     if db.execute("SELECT COUNT(*) FROM stock_items").fetchone()[0] == 0:
-        for filename, value_class, pending in SEED_FILES:
+        for filename, value_class in SEED_FILES:
             with open(os.path.join(SEED_DIR, filename), encoding="utf-8") as fh:
-                import_lines(fh.read(), value_class, pending)
+                import_lines(fh.read(), value_class)
     db.commit()
 
 
@@ -121,7 +120,7 @@ def parse_qty(text):
 
 
 def parse_line(line):
-    """Един ред от импорта -> речник, None (заглавие на група) или ValueError."""
+    """Един ред от импорта -> речник или ValueError."""
     parts = [p.strip() for p in line.replace("\t", ";").split(";")]
     if len(parts) < 4:
         raise ValueError("очакват се поне склад; МОЛ; инв. номер; мярка")
@@ -136,24 +135,21 @@ def parse_line(line):
     unit, front = parts[-2], parts[2:-2]
     if len(front) == 1:
         match = re.match(r"^(\S+)\s+(.+)$", front[0])
-        if not match:
-            return None
-        front = list(match.groups())
-    if len(front) != 2 or not front[0] or not front[1]:
+        front = list(match.groups()) if match else [front[0], ""]
+    if len(front) != 2 or not front[0]:
         raise ValueError("не се разпознават инвентарен номер и наименование")
     return {"warehouse_id": warehouse_id, "mol": parts[1], "inv_number": front[0],
             "name": " ".join(front[1].split()), "unit": unit or "бр", "quantity": quantity}
 
 
-def import_lines(text, value_class, pending=False):
-    """Записва редовете; съществуващ инв. номер в същия склад се обновява.
+def import_lines(text, value_class):
+    """Записва редовете; съществуващ инв. номер в същия склад се обновява. Празно количество = 0 (още не е получено).
 
-    pending=True: материалите още не са получени, количество 0, посоченото число става „очаквано“.
-    Връща отчет {"added", "updated", "skipped", "errors": [(№ на ред, ред, причина)]}.
+    Връща отчет {"added", "updated", "errors": [(№ на ред, ред, причина)]}.
     """
     db = get_db()
     known = {r["id"] for r in warehouses()}
-    report = {"added": 0, "updated": 0, "skipped": 0, "errors": []}
+    report = {"added": 0, "updated": 0, "errors": []}
     mol_cache = {}
     for number, line in enumerate(text.splitlines(), 1):
         if not line.strip():
@@ -162,9 +158,6 @@ def import_lines(text, value_class, pending=False):
             item = parse_line(line)
         except ValueError as exc:
             report["errors"].append((number, line, str(exc)))
-            continue
-        if item is None:
-            report["skipped"] += 1
             continue
         if item["warehouse_id"] not in known:
             report["errors"].append((number, line, f"няма склад с номер {item['warehouse_id']}"))
@@ -176,24 +169,21 @@ def import_lines(text, value_class, pending=False):
         if error:
             report["errors"].append((number, line, error))
             continue
-        quantity, expected = item["quantity"] or 0, None
-        if pending:
-            quantity, expected = 0, item["quantity"]
+        quantity = item["quantity"] or 0
         now = _now()
         existing = db.execute("SELECT id FROM stock_items WHERE warehouse_id = ? AND inv_number = ?",
                               (item["warehouse_id"], item["inv_number"])).fetchone()
         if existing:
             db.execute(
-                "UPDATE stock_items SET value_class = ?, name = ?, unit = ?, quantity = ?, expected_quantity = ?,"
-                " mol_employee_id = ?, updated_at = ? WHERE id = ?",
-                (value_class, item["name"], item["unit"], quantity, expected, mol_id, now, existing["id"]),
+                "UPDATE stock_items SET value_class = ?, name = ?, unit = ?, quantity = ?, mol_employee_id = ?, updated_at = ? WHERE id = ?",
+                (value_class, item["name"], item["unit"], quantity, mol_id, now, existing["id"]),
             )
             report["updated"] += 1
         else:
             db.execute(
-                "INSERT INTO stock_items (warehouse_id, value_class, inv_number, name, unit, quantity, expected_quantity,"
-                " mol_employee_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                (item["warehouse_id"], value_class, item["inv_number"], item["name"], item["unit"], quantity, expected,
+                "INSERT INTO stock_items (warehouse_id, value_class, inv_number, name, unit, quantity,"
+                " mol_employee_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (item["warehouse_id"], value_class, item["inv_number"], item["name"], item["unit"], quantity,
                  mol_id, now, now),
             )
             report["added"] += 1
@@ -230,7 +220,7 @@ def items():
         "pages/stock_items.html", rows=[_view(r) for r in rows], warehouses=warehouses(), warehouse_id=warehouse_id,
         value_class=value_class, query=query, counts=counts,
         class_labels={c: class_label(c, threshold) for c in VALUE_CLASSES},
-        pending_count=sum(1 for r in rows if r["expected_quantity"] is not None and not r["quantity"]),
+        missing_count=sum(1 for r in rows if not r["quantity"]),
     )
 
 
@@ -238,8 +228,7 @@ def _view(row):
     item = dict(row)
     item["mol_name"] = full_name(row) if row["first_name"] else "—"
     item["qty"] = fmt_qty(row["quantity"])
-    item["expected"] = fmt_qty(row["expected_quantity"])
-    item["pending"] = row["expected_quantity"] is not None and not row["quantity"]
+    item["missing"] = not row["quantity"]
     return item
 
 
@@ -251,7 +240,7 @@ def _get(item_id):
 
 
 FIELD_LABELS = {"warehouse_id": "Склад", "value_class": "Група", "inv_number": "Инвентарен номер", "name": "Наименование",
-                "unit": "Мярка", "quantity": "Количество", "expected_quantity": "Очаквано количество",
+                "unit": "Мярка", "quantity": "Количество",
                 "mol_employee_id": "МОЛ", "note": "Бележка"}
 
 
@@ -264,13 +253,11 @@ def _read_form():
     errors = [f"Попълнете „{FIELD_LABELS[k]}“." for k in ("inv_number", "name", "mol_employee_id") if not data[k]]
     if data["value_class"] not in VALUE_CLASSES:
         errors.append("Изберете група.")
-    for key in ("quantity", "expected_quantity"):
-        try:
-            data[key] = parse_qty(form.get(key))
-        except ValueError:
-            data[key] = None
-            errors.append(f"„{FIELD_LABELS[key]}“ трябва да е число.")
-    data["quantity"] = data["quantity"] or 0
+    try:
+        data["quantity"] = parse_qty(form.get("quantity")) or 0
+    except ValueError:
+        data["quantity"] = 0
+        errors.append("„Количество“ трябва да е число.")
     return data, errors
 
 
@@ -334,12 +321,11 @@ def import_page():
     report = None
     text = ""
     value_class = request.form.get("value_class", "under")
-    pending = bool(request.form.get("pending"))
     if request.method == "POST":
         text = request.form.get("lines", "")
         if value_class not in VALUE_CLASSES:
             value_class = "under"
-        report = import_lines(text, value_class, pending)
+        report = import_lines(text, value_class)
         get_db().commit()
         if report["added"] or report["updated"]:
             flash(f"Добавени {report['added']}, обновени {report['updated']} позиции.", "ok")
@@ -347,4 +333,4 @@ def import_page():
             flash(f"{len(report['errors'])} реда не са записани, вижте списъка по-долу.", "bad")
     threshold = settings.stock_threshold()
     return render_template("pages/stock_import.html", report=report, text=text, value_class=value_class,
-                           pending=pending, class_labels={c: class_label(c, threshold) for c in VALUE_CLASSES})
+                           class_labels={c: class_label(c, threshold) for c in VALUE_CLASSES})
