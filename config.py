@@ -33,7 +33,7 @@ MENU = [
         _page("kartoni", "Лични картони", "card"),
     ]},
     {"label": "Склад", "icon": "box", "items": [
-        {"key": "nalichnosti", "label": "Наличности", "icon": "box", "endpoint": "example_list"},
+        {"key": "nalichnosti", "label": "Наличности", "icon": "box", "endpoint": "stock.items"},
         _page("dvizhenia", "Движения", "swap"),
         _page("inventarizacia", "Инвентаризация", "check"),
     ]},
@@ -47,4 +47,3 @@ PLACEHOLDERS = {
     for item in entry.get("items", [entry])
     if item.get("endpoint") == "placeholder"
 }
-PLACEHOLDERS["nastroiki"] = "Настройки"

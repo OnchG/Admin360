@@ -1,0 +1,39 @@
+{% extends "layouts/app_shell.html" %}
+{% set sidebar_active = 'nalichnosti' %}
+{% set header_title = 'Импорт на наличност' %}
+{% set header_subtitle = 'Склад' %}
+{% set header_breadcrumbs = [{'label': 'Начало', 'url': url_for('dashboard')}, {'label': 'Склад'}, {'label': 'Наличности', 'url': url_for('stock.items')}, {'label': 'Импорт'}] %}
+{% block content %}
+<div class="page page--narrow">
+    <form class="dash-card form-card" method="post">
+        <div class="dash-card__head"><h2>Поставете редовете от таблицата</h2></div>
+        <p class="form-hint">Всеки ред: <code>склад;МОЛ;инвентарен номер;наименование</code>, после мярка и количество в отделни колони.
+            Склад 1 е Кричим, склад 2 е Цанков камък. МОЛ се търси сред служителите по име и фамилия.
+            Позиция със същия инвентарен номер в същия склад се обновява.</p>
+        <div class="form-grid">
+            <label class="field"><span>Група</span>
+                <select name="value_class">{% for c, label in class_labels.items() %}<option value="{{ c }}"{% if c == value_class %} selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+            </label>
+            <label class="field field--check"><input type="checkbox" name="pending" value="1"{% if pending %} checked{% endif %}> <span>Още не са получени (количество 0, числото става „очаквано“)</span></label>
+            <label class="field field--wide"><span>Редове</span><textarea name="lines" rows="14" class="mono" placeholder="1;ПАВЕЛ ПАВЛОВ;9-020003;БРАДВИ	бр	9">{{ text }}</textarea></label>
+        </div>
+        <div class="form-actions">
+            <a class="btn" href="{{ url_for('stock.items') }}">Към наличностите</a>
+            <button class="btn primary" type="submit">Импортирай</button>
+        </div>
+    </form>
+    {% if report %}
+    <section class="dash-card">
+        <div class="dash-card__head"><h2>Резултат</h2><span class="count-note">добавени {{ report.added }}, обновени {{ report.updated }}, пропуснати заглавия {{ report.skipped }}, грешки {{ report.errors|length }}</span></div>
+        {% if report.errors %}
+        <div class="table-wrap">
+            <table class="data-table">
+                <thead><tr><th class="num">Ред</th><th>Съдържание</th><th>Причина</th></tr></thead>
+                <tbody>{% for n, line, reason in report.errors %}<tr><td class="num mono">{{ n }}</td><td class="mono">{{ line }}</td><td>{{ reason }}</td></tr>{% endfor %}</tbody>
+            </table>
+        </div>
+        {% endif %}
+    </section>
+    {% endif %}
+</div>
+{% endblock %}
