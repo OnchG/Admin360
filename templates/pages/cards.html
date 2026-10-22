@@ -1,0 +1,44 @@
+{% extends "layouts/app_shell.html" %}
+{% set sidebar_active = 'kartoni' %}
+{% set header_title = 'Картони' %}
+{% set header_subtitle = kinds[kind] %}
+{% set header_breadcrumbs = [{'label': 'Начало', 'url': url_for('dashboard')}, {'label': 'Персонал'}, {'label': 'Картони'}] %}
+{% block content %}
+<div class="page">
+    {% if problem_count %}
+    <div class="app-flash app-flash--warn" style="margin:0">Има {{ problem_count }} разминавания между картоните и склада. <a class="row-link" href="{{ url_for('cards.problems') }}">Виж ги</a></div>
+    {% endif %}
+    <section class="dash-card">
+        <div class="dash-card__head">
+            <h2>{{ kinds[kind] }} <span class="count-note">{{ rows|length }}</span></h2>
+            <div class="head-actions">
+                <div class="seg-toggle" role="group" aria-label="Вид картони">
+                    {% for k, label in kinds.items() %}
+                    <a class="btn{% if k == kind %} is-active{% endif %}" href="{{ url_for('cards.index', vid=k) }}">{{ label }} ({{ counts.get(k, 0) }})</a>
+                    {% endfor %}
+                </div>
+                <a class="btn" href="{{ url_for('cards.problems') }}">Разминавания</a>
+                <a class="btn primary" href="{{ url_for('cards.import_page') }}">Импорт на картони</a>
+            </div>
+        </div>
+        <div class="table-wrap">
+            <table class="data-table">
+                <thead><tr><th>{{ 'Служител' if kind == 'personal' else 'Съоръжение / помещение' }}</th><th class="num">Инвентар</th><th class="num">ЛПС</th><th class="num">Дълготрайни активи</th><th></th></tr></thead>
+                <tbody>
+                {% for row in rows %}
+                    <tr>
+                        <td><a class="row-link" href="{{ url_for('cards.show', card_id=row.id) }}">{{ row.title }}</a>{% if row.left_on %} <span class="status-dot status-dot--warn">напуснал</span>{% endif %}</td>
+                        <td class="num mono">{{ row.n_inventory or '' }}</td>
+                        <td class="num mono">{{ row.n_ppe or '' }}</td>
+                        <td class="num mono">{{ row.n_fixed or '' }}</td>
+                        <td class="row-actions"><a class="btn" href="{{ url_for('cards.show', card_id=row.id) }}">Отвори</a></td>
+                    </tr>
+                {% else %}
+                    <tr><td colspan="5">Няма картони. Качете .xls картони от „Импорт на картони“.</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+</div>
+{% endblock %}

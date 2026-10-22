@@ -245,26 +245,37 @@ def _filters():
 def items():
     warehouse_id, value_class, query = _filters()
     sql = ("SELECT s.*, e.first_name, e.middle_name, e.last_name FROM stock_items s"
-           " LEFT JOIN employees e ON e.id = s.mol_employee_id WHERE s.warehouse_id = ? AND s.value_class = ?")
-    rows = get_db().execute(sql + " ORDER BY s.inv_number", (warehouse_id, value_class)).fetchall()
+           " LEFT JOIN employees e ON e.id = s.mol_employee_id WHERE s.warehouse_id = ?")
+    if query:
+        # търсенето минава и през двата списъка (под и над прага)
+        rows = get_db().execute(sql + " ORDER BY s.inv_number, s.value_class DESC", (warehouse_id,)).fetchall()
+    else:
+        rows = get_db().execute(sql + " AND s.value_class = ? ORDER BY s.inv_number", (warehouse_id, value_class)).fetchall()
     if query:
         needle = query.casefold()
         rows = [r for r in rows if needle in r["name"].casefold() or needle in r["inv_number"].casefold()]
+    from cards import allocate, issued_by_inv  # cards импортира stock
+    all_rows = get_db().execute("SELECT id, inv_number, name, value_class, quantity FROM stock_items WHERE warehouse_id = ?",
+                                (warehouse_id,)).fetchall()
+    issued = allocate(all_rows, issued_by_inv(warehouse_id))
     counts = {(r["warehouse_id"], r["value_class"]): r["n"] for r in get_db().execute(
         "SELECT warehouse_id, value_class, COUNT(*) AS n FROM stock_items GROUP BY warehouse_id, value_class")}
     threshold = settings.stock_threshold()
     return render_template(
-        "pages/stock_items.html", rows=[_view(r) for r in rows], warehouses=warehouses(), warehouse_id=warehouse_id,
+        "pages/stock_items.html", rows=[_view(r, issued.get(r["id"], 0)) for r in rows], warehouses=warehouses(), warehouse_id=warehouse_id,
         value_class=value_class, query=query, counts=counts,
         class_labels={c: class_label(c, threshold) for c in VALUE_CLASSES},
         missing_count=sum(1 for r in rows if not r["quantity"]),
     )
 
 
-def _view(row):
+def _view(row, issued=0):
     item = dict(row)
-    item["mol_name"] = full_name(row) if row["first_name"] else "—"
+    item["mol_name"] = f"{row['first_name']} {row['last_name']}" if row["first_name"] else "—"
     item["qty"] = fmt_qty(row["quantity"])
+    item["issued"] = fmt_qty(issued) if issued else ""
+    item["on_shelf"] = fmt_qty(row["quantity"] - issued)
+    item["over"] = issued > row["quantity"] + 1e-9
     item["missing"] = not row["quantity"]
     return item
 
@@ -299,8 +310,9 @@ def _read_form():
 
 
 def _form_context(item):
+    from cards import holders
     threshold = settings.stock_threshold()
-    return {"item": item, "warehouses": warehouses(), "employees": active_employees(),
+    return {"holders": holders(item["warehouse_id"], item["inv_number"]) if item.get("inv_number") else [],"item": item, "warehouses": warehouses(), "employees": active_employees(),
             "class_labels": {c: class_label(c, threshold) for c in VALUE_CLASSES}, "fmt_qty": fmt_qty}
 
 
