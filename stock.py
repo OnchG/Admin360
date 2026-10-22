@@ -3,6 +3,7 @@
 Всяка позиция е в един склад, в група „под прага“ или „над прага“ (прагът е настройка, сега 20 лв)
 и има МОЛ: материално отговорен служител от модула „Персонал“.
 Позиция, която още не е получена (празно количество), е с количество 0.
+Инвентарният номер не е уникален: един номер може да е и под, и над прага, и да е на няколко различни позиции.
 
 Импорт: редове във вида, в който се копират от таблицата (разделител ';', а мярката и количеството
 са в отделни колони, т.е. разделени с табулация):
@@ -38,8 +39,11 @@ CREATE TABLE IF NOT EXISTS stock_items (
     mol_employee_id INTEGER REFERENCES employees(id),
     note TEXT NOT NULL DEFAULT '',
     created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL,
-    UNIQUE (warehouse_id, inv_number)
+    updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS stock_items_inv ON stock_items (warehouse_id, value_class, inv_number);
+CREATE TABLE IF NOT EXISTS stock_seeds (
+    filename TEXT PRIMARY KEY
 );
 """
 
@@ -52,6 +56,7 @@ VALUE_CLASSES = ("under", "over")
 SEED_FILES = [
     ("krichim_pod_prag.txt", "under"),
     ("krichim_pod_prag_2.txt", "under"),
+    ("krichim_nad_prag.txt", "over"),
 ]
 SEED_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "seed")
 
@@ -76,13 +81,34 @@ def fmt_qty(value):
 
 def init_db():
     db = get_db()
+    _drop_old_unique(db)
+    had_seeds_table = db.execute("SELECT 1 FROM sqlite_master WHERE name = 'stock_seeds'").fetchone()
     db.executescript(SCHEMA)
     db.executemany("INSERT OR IGNORE INTO warehouses (id, name) VALUES (?, ?)", WAREHOUSES)
-    if db.execute("SELECT COUNT(*) FROM stock_items").fetchone()[0] == 0:
-        for filename, value_class in SEED_FILES:
+    if not had_seeds_table and db.execute("SELECT COUNT(*) FROM stock_items").fetchone()[0]:
+        # база отпреди stock_seeds: първите два файла вече са заредени
+        db.executemany("INSERT INTO stock_seeds (filename) VALUES (?)", [(f,) for f, _ in SEED_FILES[:2]])
+    loaded = {r["filename"] for r in db.execute("SELECT filename FROM stock_seeds")}
+    for filename, value_class in SEED_FILES:
+        if filename not in loaded:
             with open(os.path.join(SEED_DIR, filename), encoding="utf-8") as fh:
                 import_lines(fh.read(), value_class)
+            db.execute("INSERT INTO stock_seeds (filename) VALUES (?)", (filename,))
     db.commit()
+
+
+def _drop_old_unique(db):
+    """Първата версия имаше UNIQUE (склад, инв. номер), но един номер може да е и под, и над прага,
+    а в списъците има различни позиции с еднакъв номер. Таблицата се пресъздава без ограничението."""
+    row = db.execute("SELECT sql FROM sqlite_master WHERE name = 'stock_items'").fetchone()
+    if not row or "UNIQUE" not in row["sql"]:
+        return
+    cols = ("id, warehouse_id, value_class, inv_number, name, unit, quantity, mol_employee_id, note,"
+            " created_at, updated_at")
+    db.execute("ALTER TABLE stock_items RENAME TO stock_items_old")
+    db.executescript(SCHEMA)
+    db.execute(f"INSERT INTO stock_items ({cols}) SELECT {cols} FROM stock_items_old")
+    db.execute("DROP TABLE stock_items_old")
 
 
 def warehouses():
@@ -136,21 +162,25 @@ def parse_line(line):
     if len(front) == 1:
         match = re.match(r"^(\S+)\s+(.+)$", front[0])
         front = list(match.groups()) if match else [front[0], ""]
-    if len(front) != 2 or not front[0]:
-        raise ValueError("не се разпознават инвентарен номер и наименование")
+    if not front or not front[0]:
+        raise ValueError("не се разпознава инвентарен номер")
+    # ';' в самото наименование („АКУМУЛАТОР СИТРОЕН С4; СА4348КМ“)
+    name = "; ".join(front[1:])
     return {"warehouse_id": warehouse_id, "mol": parts[1], "inv_number": front[0],
-            "name": " ".join(front[1].split()), "unit": unit or "бр", "quantity": quantity}
+            "name": " ".join(name.split()), "unit": unit or "бр", "quantity": quantity}
 
 
 def import_lines(text, value_class):
-    """Записва редовете; съществуващ инв. номер в същия склад се обновява. Празно количество = 0 (още не е получено).
+    """Записва редовете. Позиция с еднакви склад, група, инв. номер и наименование се обновява, а ако
+    се повтаря в същия импорт, повторният ред се пропуска. Празно количество = 0 (още не е получено).
 
     Връща отчет {"added", "updated", "errors": [(№ на ред, ред, причина)]}.
     """
     db = get_db()
     known = {r["id"] for r in warehouses()}
-    report = {"added": 0, "updated": 0, "errors": []}
+    report = {"added": 0, "updated": 0, "repeated": [], "errors": []}
     mol_cache = {}
+    seen = set()  # позиции, записани в този импорт
     for number, line in enumerate(text.splitlines(), 1):
         if not line.strip():
             continue
@@ -171,8 +201,15 @@ def import_lines(text, value_class):
             continue
         quantity = item["quantity"] or 0
         now = _now()
-        existing = db.execute("SELECT id FROM stock_items WHERE warehouse_id = ? AND inv_number = ?",
-                              (item["warehouse_id"], item["inv_number"])).fetchone()
+        key = (item["warehouse_id"], item["inv_number"], item["name"].casefold())
+        if key in seen:
+            report["repeated"].append((number, line))
+            continue
+        seen.add(key)
+        existing = db.execute(
+            "SELECT id FROM stock_items WHERE warehouse_id = ? AND value_class = ? AND inv_number = ?"
+            " AND lower(name) = lower(?)",
+            (item["warehouse_id"], value_class, item["inv_number"], item["name"])).fetchone()
         if existing:
             db.execute(
                 "UPDATE stock_items SET value_class = ?, name = ?, unit = ?, quantity = ?, mol_employee_id = ?, updated_at = ? WHERE id = ?",
@@ -269,10 +306,12 @@ def _form_context(item):
 
 def _save(data, item_id=None):
     db = get_db()
-    clash = db.execute("SELECT id FROM stock_items WHERE warehouse_id = ? AND inv_number = ? AND id IS NOT ?",
-                       (data["warehouse_id"], data["inv_number"], item_id)).fetchone()
+    clash = db.execute(
+        "SELECT id FROM stock_items WHERE warehouse_id = ? AND value_class = ? AND inv_number = ? AND lower(name) = lower(?)"
+        " AND id IS NOT ?",
+        (data["warehouse_id"], data["value_class"], data["inv_number"], data["name"], item_id)).fetchone()
     if clash:
-        return f"В този склад вече има позиция с инвентарен номер {data['inv_number']}."
+        return f"В тази група вече има „{data['name']}“ с инвентарен номер {data['inv_number']}."
     cols = list(FIELD_LABELS)
     values = [data[c] for c in cols]
     if item_id:
@@ -314,6 +353,16 @@ def edit(item_id):
             flash(message, "bad")
         return render_template("pages/stock_item_form.html", **_form_context({**dict(row), **data}))
     return render_template("pages/stock_item_form.html", **_form_context(dict(row)))
+
+
+@bp.route("/poziciya/<int:item_id>/iztrivane", methods=["POST"])
+def delete(item_id):
+    row = _get(item_id)
+    db = get_db()
+    db.execute("DELETE FROM stock_items WHERE id = ?", (item_id,))
+    db.commit()
+    flash(f"Позиция {row['inv_number']} „{row['name']}“ е изтрита.", "ok")
+    return redirect(url_for("stock.items", sklad=row["warehouse_id"], grupa=row["value_class"]))
 
 
 @bp.route("/import", methods=["GET", "POST"])

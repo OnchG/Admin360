@@ -30,9 +30,11 @@
         </div>
         <p class="form-hint">Материал, който още не е получен, се води с количество 0.</p>
         <div class="form-actions">
+            {% if not is_new %}<button class="btn danger form-actions__left" type="submit" form="delete-form">Изтрий</button>{% endif %}
             <a class="btn" href="{{ url_for('stock.items', sklad=item.warehouse_id, grupa=item.value_class) }}">Отказ</a>
             <button class="btn primary" type="submit">Запази</button>
         </div>
     </form>
+    {% if not is_new %}<form id="delete-form" method="post" action="{{ url_for('stock.delete', item_id=item.id) }}" onsubmit="return confirm('Да се изтрие ли позицията?')"></form>{% endif %}
 </div>
 {% endblock %}
